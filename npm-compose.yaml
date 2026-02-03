@@ -1,0 +1,40 @@
+services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    environment: # Uncomment this if IPv6 is not enabled on your host
+      - DISABLE_IPV6=true # Uncomment this if IPv6 is not enabled on your host
+    volumes:
+      - ${NPM_DATA_VOLUME}:/data
+      - ${NPM_LETSENCRYPT_VOLUME}:/etc/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    networks:
+      - proxy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: proxy_network
+    external: true
