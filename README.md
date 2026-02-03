@@ -81,12 +81,12 @@ docker compose -f nextcloud-compose.yaml --env-file nextcloud.env up -d
 
 | Port | Service | Access |
 |------|---------|--------|
-| 80 | NPM HTTP | External |
-| 443 | NPM HTTPS | External |
-| 81 | NPM Admin | LAN only (restrict this!) |
+| 81 | NPM Admin | LAN only |
 | 8888 | Nextcloud | LAN direct access |
 | 8780 | HaRP ExApps | LAN direct access |
 | 8782 | HaRP FRP | External Docker engines |
+
+External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/443 exposed.
 
 ## Notes
 
