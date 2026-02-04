@@ -6,8 +6,8 @@ Docker Compose setup for Nextcloud and Gitea with Nginx Proxy Manager and Cloudf
 
 ```
 Internet → Cloudflare Tunnel → NPM → Nextcloud
-                                  → HaRP → ExApps
-                                  → Gitea
+                                   → HaRP → ExApps
+                                   → Gitea
 LAN → :8888 → Nextcloud (direct)
     → :8780 → HaRP/ExApps (direct)
     → :3000 → Gitea (direct)
