@@ -21,11 +21,11 @@ LAN → :8888 → Nextcloud (direct)
 
 ## Services
 
-### npm-compose.yaml
+### reverse-proxy/docker-compose.yaml
 - **nginx-proxy-manager** - Reverse proxy with Let's Encrypt SSL
 - **cloudflared** - Cloudflare Tunnel for external access
 
-### nextcloud-compose.yaml
+### nextcloud/docker-compose.yaml
 - **nextcloud_app** - Main Nextcloud instance
 - **nextcloud_postgres** - PostgreSQL database
 - **nextcloud_redis** - Redis cache
@@ -42,13 +42,13 @@ docker network create proxy_network
 
 ### 2. Configure environment files
 
-Copy and edit the example values in `npm.env` and `nextcloud.env`:
+Copy and edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 
-**npm.env**
+**reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Your Cloudflare Tunnel token
 - `DOCKER_VOLUME_DIR` - Base path for NPM data
 
-**nextcloud.env**
+**nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
 - `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated trusted domains
 - `POSTGRES_PASSWORD` - Database password (change this!)
@@ -65,9 +65,18 @@ sudo mkdir -p /var/lib/nextcloud/{app,data,db,harp_certs}
 ### 4. Start the stacks
 
 ```bash
-docker compose -f npm-compose.yaml --env-file npm.env up -d
-docker compose -f nextcloud-compose.yaml --env-file nextcloud.env up -d
+docker compose -f reverse-proxy/docker-compose.yaml up -d
+docker compose -f nextcloud/docker-compose.yaml up -d
 ```
+
+## Configuring Cloudflare Tunnel
+
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors → Tunnels**
+2. Create a new tunnel and copy the tunnel token into `CLOUDFLARE_TUNNEL_TOKEN` in `reverse-proxy/.env`
+3. Start the reverse-proxy stack, then access the NPM admin panel at `http://<server-ip>:81`
+4. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
+5. Add a public hostname for your domain (e.g., `cloud.yourdomain.com`)
+6. Set the service to `https://nginx-proxy-manager:443`
 
 ## Configuring HaRP/AppAPI
 
@@ -90,6 +99,6 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 
 ## Notes
 
-- The `OVERWRITEPROTOCOL` env var should be set to `https` if using SSL termination at NPM
+- After installation, set `overwriteprotocol` to `https` in Nextcloud's `config.php` so it generates HTTPS links through NPM
 - Configure NPM to proxy to `nextcloud_app:80` for the main Nextcloud instance
 - For notify_push, proxy to `nextcloud_notify_push:7867`

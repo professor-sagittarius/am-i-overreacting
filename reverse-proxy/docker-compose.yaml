@@ -4,8 +4,8 @@ services:
     restart: unless-stopped
     ports:
       - "81:81" # Admin panel - LAN access only
-    environment: # Uncomment this if IPv6 is not enabled on your host
-      - DISABLE_IPV6=true # Uncomment this if IPv6 is not enabled on your host
+    environment:
+      - DISABLE_IPV6=true # Set to false if IPv6 is enabled on your host
     volumes:
       - ${NPM_DATA_VOLUME}:/data
       - ${NPM_LETSENCRYPT_VOLUME}:/etc/letsencrypt
