@@ -102,7 +102,7 @@ docker compose -f gitea/docker-compose.yaml up -d
    ```
 3. Run the setup command:
    ```bash
-   docker exec -u www-data nextcloud-nextcloud_app-1 php occ notify_push:setup https://cloud.yourdomain.com/push
+   docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
 ### 8. Configure HaRP/AppAPI

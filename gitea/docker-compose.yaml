@@ -1,6 +1,7 @@
 services:
   gitea_app:
     image: gitea/gitea:${GITEA_VERSION:-latest}
+    container_name: gitea_app
     restart: unless-stopped
     depends_on:
       - gitea_postgres
@@ -26,6 +27,7 @@ services:
 
   gitea_postgres:
     image: postgres:18-alpine
+    container_name: gitea_postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
