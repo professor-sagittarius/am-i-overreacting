@@ -42,12 +42,12 @@ docker network create proxy_network
 
 ### 2. Create a Cloudflare Tunnel
 
-1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors → Tunnels**
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors**
 2. Create a new tunnel and copy the tunnel token
 
 ### 3. Configure environment files
 
-Copy and edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
+Edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
