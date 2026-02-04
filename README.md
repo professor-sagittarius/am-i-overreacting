@@ -1,14 +1,16 @@
 # am-i-overreacting
 
-Docker Compose setup for Nextcloud with Nginx Proxy Manager and Cloudflare Tunnel.
+Docker Compose setup for Nextcloud and Gitea with Nginx Proxy Manager and Cloudflare Tunnel.
 
 ## Architecture
 
 ```
 Internet → Cloudflare Tunnel → NPM → Nextcloud
                                   → HaRP → ExApps
+                                  → Gitea
 LAN → :8888 → Nextcloud (direct)
     → :8780 → HaRP/ExApps (direct)
+    → :3000 → Gitea (direct)
 ```
 
 ### Networks
@@ -18,6 +20,7 @@ LAN → :8888 → Nextcloud (direct)
 | `proxy_network` | Reverse proxy traffic (NPM, cloudflared, external-facing services) |
 | `nextcloud_network` | Internal services (postgres, redis) |
 | `exapps_network` | HaRP and managed ExApp containers |
+| `gitea_network` | Gitea internal services (postgres) |
 
 ## Services
 
@@ -31,6 +34,10 @@ LAN → :8888 → Nextcloud (direct)
 - **nextcloud_redis** - Redis cache
 - **nextcloud_notify_push** - Push notifications (High Performance Backend)
 - **nextcloud_harp** - HaRP reverse proxy for ExApps (AppAPI)
+
+### gitea/docker-compose.yaml
+- **gitea_app** - Gitea git server
+- **gitea_postgres** - PostgreSQL database
 
 ## Setup
 
@@ -47,7 +54,7 @@ docker network create proxy_network
 
 ### 3. Configure environment files
 
-Edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
+Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.env`:
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
@@ -60,6 +67,10 @@ Edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 - `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud data
 
+**gitea/.env**
+- `POSTGRES_PASSWORD` - Database password (change this!)
+- `DOCKER_VOLUME_DIR` - Base path for Gitea data
+
 ### 4. Create volume directories
 
 Create the directories referenced by `DOCKER_VOLUME_DIR` in each `.env` file:
@@ -67,6 +78,7 @@ Create the directories referenced by `DOCKER_VOLUME_DIR` in each `.env` file:
 ```bash
 source reverse-proxy/.env && sudo mkdir -p "$NPM_DATA_VOLUME" "$NPM_LETSENCRYPT_VOLUME"
 source nextcloud/.env && sudo mkdir -p "$NEXTCLOUD_APP_VOLUME" "$NEXTCLOUD_DATA_VOLUME" "$NEXTCLOUD_DB_VOLUME" "$HARP_CERTS_VOLUME"
+source gitea/.env && sudo mkdir -p "$GITEA_DATA_VOLUME" "$GITEA_DB_VOLUME"
 ```
 
 ### 5. Start the reverse-proxy stack
@@ -81,12 +93,14 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 2. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
 3. Add a proxy host for your Nextcloud domain pointing to `nextcloud_app:80`
 4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the proxy host — this configures security headers, large file uploads, and the notify_push WebSocket proxy
-5. In the Cloudflare Tunnel config, add a public hostname for your domain (e.g., `cloud.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
+5. Add a proxy host for your Gitea domain pointing to `gitea_app:3000`
+6. In the Cloudflare Tunnel config, add public hostnames for your domains (e.g., `cloud.yourdomain.com`, `git.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
 
-### 7. Start the Nextcloud stack
+### 7. Start the Nextcloud and Gitea stacks
 
 ```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
+docker compose -f gitea/docker-compose.yaml up -d
 ```
 
 ### 8. Configure notify_push
@@ -113,6 +127,8 @@ docker compose -f nextcloud/docker-compose.yaml up -d
 | 8888 | Nextcloud | LAN direct access |
 | 8780 | HaRP ExApps | LAN direct access |
 | 8782 | HaRP FRP | External Docker engines |
+| 3000 | Gitea | LAN direct access |
+| 2222 | Gitea SSH | Git over SSH |
 
 External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/443 exposed.
 
