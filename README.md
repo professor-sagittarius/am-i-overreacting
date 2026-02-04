@@ -111,7 +111,7 @@ docker compose -f gitea/docker-compose.yaml up -d
    docker exec -u www-data nextcloud-nextcloud_app-1 php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
-## Configuring HaRP/AppAPI
+### 9. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:
