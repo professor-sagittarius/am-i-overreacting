@@ -62,7 +62,6 @@ Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.e
 
 **nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
-- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated trusted domains
 - `POSTGRES_PASSWORD` - Database password (change this!)
 - `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud data
@@ -93,19 +92,38 @@ docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
 ```
 
-### 7. Configure notify_push
+### 7. Configure trusted domains and proxies
+
+After initial setup, configure trusted domains, proxies, and recommended settings:
+
+```bash
+docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 0 --value="nextcloud.yourdomain.com"
+docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="your.vm.ip.address:8888"
+docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 0 --value="172.16.0.0/12"
+docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 1 --value="10.0.0.0/8"
+docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 2 --value="192.168.0.0/16"
+docker exec -u www-data nextcloud_app php occ config:system:set default_phone_region --value="US"
+docker exec -u www-data nextcloud_app php occ config:system:set maintenance_window_start --type=integer --value=11
+docker exec -u www-data nextcloud_app php occ db:add-missing-indices
+docker exec -u www-data nextcloud_app php occ maintenance:repair --include-expensive
+```
+
+Replace `US` with your [ISO 3166-1 country code](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2). The maintenance window is set to 11:00 UTC, which is 3:00 PST. Adjust to a low-traffic hour in your timezone.
+
+### 8. Configure notify_push
 
 1. In Nextcloud, install the **Client Push** app
 2. Start the notify_push service:
    ```bash
    docker compose -f nextcloud/docker-compose.yaml --profile notify_push up -d
    ```
+   **Portainer**: Instead, uncomment `COMPOSE_PROFILES=notify_push` in `nextcloud/.env` and redeploy the stack.
 3. Run the setup command:
    ```bash
    docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
-### 8. Configure HaRP/AppAPI
+### 9. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:

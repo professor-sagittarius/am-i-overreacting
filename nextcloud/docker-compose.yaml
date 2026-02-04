@@ -9,14 +9,12 @@ services:
     ports:
       - 8888:80 #so the instance can be accessed without the use of cloudflare tunnel in the LAN
     environment:
-      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=${POSTGRES_HOST}
       - REDIS_HOST=${REDIS_HOST}
       - NEXTCLOUD_DATA_DIR=${NEXTCLOUD_DATA_DIR}
-      - TRUSTED_PROXIES=${TRUSTED_PROXIES}
     volumes:
       - ${NEXTCLOUD_APP_VOLUME}:/var/www/html
       - ${NEXTCLOUD_DATA_VOLUME}:${NEXTCLOUD_DATA_DIR} #https://docs.nextcloud.com/server/latest/admin_manual/installation/harden_server.html#place-data-directory-outside-of-the-web-root
@@ -30,7 +28,7 @@ services:
       - proxy
 
   nextcloud_postgres: #AIO uses postgres, so this instance should too
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     container_name: nextcloud_postgres
     restart: unless-stopped
     environment:
