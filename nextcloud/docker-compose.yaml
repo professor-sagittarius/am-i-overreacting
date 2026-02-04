@@ -60,6 +60,8 @@ services:
     image: nextcloud:${NEXTCLOUD_VERSION:-latest}
     entrypoint: /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php
     restart: unless-stopped
+    profiles:
+      - notify_push
     depends_on:
       - nextcloud_app
     environment:

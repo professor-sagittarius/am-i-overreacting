@@ -96,7 +96,11 @@ docker compose -f gitea/docker-compose.yaml up -d
 ### 7. Configure notify_push
 
 1. In Nextcloud, install the **Client Push** app
-2. Run the setup command:
+2. Start the notify_push service:
+   ```bash
+   docker compose -f nextcloud/docker-compose.yaml --profile notify_push up -d
+   ```
+3. Run the setup command:
    ```bash
    docker exec -u www-data nextcloud-nextcloud_app-1 php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
