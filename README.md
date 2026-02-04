@@ -62,9 +62,11 @@ Copy and edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 
 ### 4. Create volume directories
 
+Create the directories referenced by `DOCKER_VOLUME_DIR` in each `.env` file:
+
 ```bash
-sudo mkdir -p /var/lib/nginx-proxy-manager/{data,letsencrypt}
-sudo mkdir -p /var/lib/nextcloud/{app,data,db,harp_certs}
+source reverse-proxy/.env && sudo mkdir -p "$NPM_DATA_VOLUME" "$NPM_LETSENCRYPT_VOLUME"
+source nextcloud/.env && sudo mkdir -p "$NEXTCLOUD_APP_VOLUME" "$NEXTCLOUD_DATA_VOLUME" "$NEXTCLOUD_DB_VOLUME" "$HARP_CERTS_VOLUME"
 ```
 
 ### 5. Start the reverse-proxy stack
