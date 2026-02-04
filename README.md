@@ -71,23 +71,13 @@ Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.e
 - `POSTGRES_PASSWORD` - Database password (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Gitea data
 
-### 4. Create volume directories
-
-Create the directories referenced by `DOCKER_VOLUME_DIR` in each `.env` file:
-
-```bash
-source reverse-proxy/.env && sudo mkdir -p "$NPM_DATA_VOLUME" "$NPM_LETSENCRYPT_VOLUME"
-source nextcloud/.env && sudo mkdir -p "$NEXTCLOUD_APP_VOLUME" "$NEXTCLOUD_DATA_VOLUME" "$NEXTCLOUD_DB_VOLUME" "$HARP_CERTS_VOLUME"
-source gitea/.env && sudo mkdir -p "$GITEA_DATA_VOLUME" "$GITEA_DB_VOLUME"
-```
-
-### 5. Start the reverse-proxy stack
+### 4. Start the reverse-proxy stack
 
 ```bash
 docker compose -f reverse-proxy/docker-compose.yaml up -d
 ```
 
-### 6. Configure NPM and Cloudflare
+### 5. Configure NPM and Cloudflare
 
 1. Access the NPM admin panel at `http://<server-ip>:81`
 2. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
@@ -96,14 +86,14 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 5. Add a proxy host for your Gitea domain pointing to `gitea_app:3000`
 6. In the Cloudflare Tunnel config, add public hostnames for your domains (e.g., `cloud.yourdomain.com`, `git.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
 
-### 7. Start the Nextcloud and Gitea stacks
+### 6. Start the Nextcloud and Gitea stacks
 
 ```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
 ```
 
-### 8. Configure notify_push
+### 7. Configure notify_push
 
 1. In Nextcloud, install the **Client Push** app
 2. Run the setup command:
@@ -111,7 +101,7 @@ docker compose -f gitea/docker-compose.yaml up -d
    docker exec -u www-data nextcloud-nextcloud_app-1 php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
-### 9. Configure HaRP/AppAPI
+### 8. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:
