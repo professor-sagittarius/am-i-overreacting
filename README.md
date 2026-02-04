@@ -40,12 +40,17 @@ LAN → :8888 → Nextcloud (direct)
 docker network create proxy_network
 ```
 
-### 2. Configure environment files
+### 2. Create a Cloudflare Tunnel
+
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors → Tunnels**
+2. Create a new tunnel and copy the tunnel token
+
+### 3. Configure environment files
 
 Copy and edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 
 **reverse-proxy/.env**
-- `CLOUDFLARE_TUNNEL_TOKEN` - Your Cloudflare Tunnel token
+- `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
 - `DOCKER_VOLUME_DIR` - Base path for NPM data
 
 **nextcloud/.env**
@@ -55,28 +60,40 @@ Copy and edit the example values in `reverse-proxy/.env` and `nextcloud/.env`:
 - `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud data
 
-### 3. Create volume directories
+### 4. Create volume directories
 
 ```bash
 sudo mkdir -p /var/lib/nginx-proxy-manager/{data,letsencrypt}
 sudo mkdir -p /var/lib/nextcloud/{app,data,db,harp_certs}
 ```
 
-### 4. Start the stacks
+### 5. Start the reverse-proxy stack
 
 ```bash
 docker compose -f reverse-proxy/docker-compose.yaml up -d
+```
+
+### 6. Configure NPM and Cloudflare
+
+1. Access the NPM admin panel at `http://<server-ip>:81`
+2. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
+3. Add a proxy host for your Nextcloud domain pointing to `nextcloud_app:80`
+4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the proxy host — this configures security headers, large file uploads, and the notify_push WebSocket proxy
+5. In the Cloudflare Tunnel config, add a public hostname for your domain (e.g., `cloud.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
+
+### 7. Start the Nextcloud stack
+
+```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
 ```
 
-## Configuring Cloudflare Tunnel
+### 8. Configure notify_push
 
-1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors → Tunnels**
-2. Create a new tunnel and copy the tunnel token into `CLOUDFLARE_TUNNEL_TOKEN` in `reverse-proxy/.env`
-3. Start the reverse-proxy stack, then access the NPM admin panel at `http://<server-ip>:81`
-4. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
-5. Add a public hostname for your domain (e.g., `cloud.yourdomain.com`)
-6. Set the service to `https://nginx-proxy-manager:443`
+1. In Nextcloud, install the **Client Push** app
+2. Run the setup command:
+   ```bash
+   docker exec -u www-data nextcloud-nextcloud_app-1 php occ notify_push:setup https://cloud.yourdomain.com/push
+   ```
 
 ## Configuring HaRP/AppAPI
 
@@ -100,5 +117,3 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 ## Notes
 
 - After installation, set `overwriteprotocol` to `https` in Nextcloud's `config.php` so it generates HTTPS links through NPM
-- Configure NPM to proxy to `nextcloud_app:80` for the main Nextcloud instance
-- For notify_push, proxy to `nextcloud_notify_push:7867`
