@@ -62,6 +62,9 @@ Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.e
 
 **nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
+- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com staging.example.com`)
+- `NEXTCLOUD_LAN_IP` - LAN IP for direct access
+- `NEXTCLOUD_LAN_PORT` - Port for LAN direct access (default: 8888)
 - `POSTGRES_PASSWORD` - Database password (change this!)
 - `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud data
@@ -92,23 +95,19 @@ docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
 ```
 
-### 7. Configure trusted domains and proxies
+### 7. Copy hook scripts to the volume directory
 
-After initial setup, configure trusted domains, proxies, and recommended settings:
+The hook scripts automate initial Nextcloud configuration (trusted domains, trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
 
 ```bash
-docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 0 --value="nextcloud.yourdomain.com"
-docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="your.vm.ip.address:8888"
-docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 0 --value="172.16.0.0/12"
-docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 1 --value="10.0.0.0/8"
-docker exec -u www-data nextcloud_app php occ config:system:set trusted_proxies 2 --value="192.168.0.0/16"
-docker exec -u www-data nextcloud_app php occ config:system:set default_phone_region --value="US"
-docker exec -u www-data nextcloud_app php occ config:system:set maintenance_window_start --type=integer --value=11
-docker exec -u www-data nextcloud_app php occ db:add-missing-indices
-docker exec -u www-data nextcloud_app php occ maintenance:repair --include-expensive
+source nextcloud/.env
+sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
+sudo cp nextcloud/hooks/pre-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/
+sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
+sudo chmod +x ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/*.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/*.sh
 ```
 
-Replace `US` with your [ISO 3166-1 country code](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2). The maintenance window is set to 11:00 UTC, which is 3:00 PST. Adjust to a low-traffic hour in your timezone.
+These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
 
 ### 8. Configure notify_push
 
