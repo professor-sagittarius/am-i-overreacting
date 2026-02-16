@@ -41,18 +41,29 @@ LAN → :8888 → Nextcloud (direct)
 
 ## Setup
 
-### 1. Create the proxy network
+### 1. Configure Docker log rotation
+
+Copy the included `daemon.json` to set default log rotation for all containers:
+
+```bash
+sudo cp daemon.json /etc/docker/daemon.json
+sudo systemctl restart docker
+```
+
+This limits every container to 10MB x 3 log files (30MB max per container). This is especially important because HaRP-spawned ExApp containers are not managed by docker-compose and would otherwise have no log limits.
+
+### 2. Create the proxy network
 
 ```bash
 docker network create proxy_network
 ```
 
-### 2. Create a Cloudflare Tunnel
+### 3. Create a Cloudflare Tunnel
 
 1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors**
 2. Create a new tunnel and copy the tunnel token
 
-### 3. Configure environment files
+### 4. Configure environment files
 
 Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.env`:
 
@@ -73,13 +84,13 @@ Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.e
 - `POSTGRES_PASSWORD` - Database password (change this!)
 - `DOCKER_VOLUME_DIR` - Base path for Gitea data
 
-### 4. Start the reverse-proxy stack
+### 5. Start the reverse-proxy stack
 
 ```bash
 docker compose -f reverse-proxy/docker-compose.yaml up -d
 ```
 
-### 5. Configure NPM and Cloudflare
+### 6. Configure NPM and Cloudflare
 
 1. Access the NPM admin panel at `http://<server-ip>:81`
 2. Generate an [Origin Certificate](https://dash.cloudflare.com/?to=/:account/:zone/ssl-tls/origin) under **SSL/TLS → Origin Server → Create Certificate** and install it in NPM as a custom SSL certificate for your domain
@@ -88,14 +99,14 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 5. Add a proxy host for your Gitea domain pointing to `gitea_app:3000`
 6. In the Cloudflare Tunnel config, add public hostnames for your domains (e.g., `cloud.yourdomain.com`, `git.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
 
-### 6. Start the Nextcloud and Gitea stacks
+### 7. Start the Nextcloud and Gitea stacks
 
 ```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
 ```
 
-### 7. Copy hook scripts to the volume directory
+### 8. Copy hook scripts to the volume directory
 
 The hook scripts automate initial Nextcloud configuration (trusted domains, trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
 
@@ -109,7 +120,7 @@ sudo chmod +x ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/*.sh ${NEXTCLOUD_HOOKS_
 
 These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
 
-### 8. Configure notify_push
+### 9. Configure notify_push
 
 1. In Nextcloud, install the **Client Push** app
 2. Start the notify_push service:
@@ -122,7 +133,7 @@ These scripts run automatically during Nextcloud's initial installation and conf
    docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
-### 9. Configure HaRP/AppAPI
+### 10. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:

@@ -16,11 +16,6 @@ services:
       - GITEA__database__PASSWD=${POSTGRES_PASSWORD}
     volumes:
       - ${GITEA_DATA_VOLUME}:/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
     networks:
       - gitea
       - proxy
@@ -35,11 +30,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - ${GITEA_DB_VOLUME}:/var/lib/postgresql/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
     networks:
       - gitea
 
