@@ -43,10 +43,19 @@ LAN → :8888 → Nextcloud (direct)
 
 ### 1. Configure Docker log rotation
 
-Copy the included `daemon.json` to set default log rotation for all containers:
+Set default log rotation for all containers by adding the settings from the included `daemon.json` to your Docker daemon configuration.
+
+If `/etc/docker/daemon.json` does not exist:
 
 ```bash
 sudo cp daemon.json /etc/docker/daemon.json
+```
+
+If it already exists, merge the `log-driver` and `log-opts` keys from `daemon.json` into your existing file.
+
+Then restart Docker:
+
+```bash
 sudo systemctl restart docker
 ```
 
