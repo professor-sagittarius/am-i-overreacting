@@ -32,7 +32,7 @@ LAN → :8888 → Nextcloud (direct)
 - **nextcloud_app** - Main Nextcloud instance
 - **nextcloud_postgres** - PostgreSQL database
 - **nextcloud_redis** - Redis cache
-- **nextcloud_notify_push** - Push notifications (High Performance Backend)
+- **nextcloud_notify_push** - Push notifications (High Performance Backend for files)
 - **nextcloud_harp** - HaRP reverse proxy for ExApps (AppAPI)
 
 ### gitea/docker-compose.yaml
