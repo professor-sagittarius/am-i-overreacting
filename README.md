@@ -66,7 +66,13 @@ docker network create proxy_network
 
 ### 4. Configure environment files
 
-Edit the example values in `reverse-proxy/.env`, `nextcloud/.env`, and `gitea/.env`:
+Copy the example environment files and edit them with your values:
+
+```bash
+cp reverse-proxy/example.env reverse-proxy/.env
+cp nextcloud/example.env nextcloud/.env
+cp gitea/example.env gitea/.env
+```
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
