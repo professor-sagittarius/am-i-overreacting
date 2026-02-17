@@ -121,7 +121,6 @@ source nextcloud/.env
 sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
 sudo cp nextcloud/hooks/pre-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
-sudo chmod +x ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/*.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/*.sh
 ```
 
 These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
