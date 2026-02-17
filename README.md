@@ -128,7 +128,7 @@ These scripts run automatically during Nextcloud's initial installation and conf
    ```bash
    docker compose -f nextcloud/docker-compose.yaml --profile notify_push up -d
    ```
-   **Portainer**: Instead, uncomment `COMPOSE_PROFILES=notify_push` in `nextcloud/.env` and redeploy the stack.
+   **Portainer**: Instead, add environment variable `COMPOSE_PROFILES=notify_push` and redeploy the stack.
 3. Run the setup command:
    ```bash
    docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
