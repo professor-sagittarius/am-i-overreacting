@@ -43,21 +43,13 @@ LAN → :8888 → Nextcloud (direct)
 
 ### 1. Configure Docker log rotation
 
-Set default log rotation for all containers by adding the settings from the included `daemon.json` to your Docker daemon configuration.
-
-If `/etc/docker/daemon.json` does not exist:
+Set default log rotation for all containers by copying the included `daemon.json` to your Docker daemon configuration:
 
 ```bash
-sudo cp daemon.json /etc/docker/daemon.json
+sudo cp -n daemon.json /etc/docker/daemon.json && sudo systemctl restart docker
 ```
 
-If it already exists, merge the `log-driver` and `log-opts` keys from `daemon.json` into your existing file.
-
-Then restart Docker:
-
-```bash
-sudo systemctl restart docker
-```
+If the file already exists (`cp` prints an error and nothing is overwritten), merge the `log-driver` and `log-opts` keys from `daemon.json` into your existing file manually, then restart Docker.
 
 This limits every container to 10MB x 3 log files (30MB max per container). This is especially important because HaRP-spawned ExApp containers are not managed by docker-compose and would otherwise have no log limits.
 
