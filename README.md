@@ -80,7 +80,6 @@ cp gitea/example.env gitea/.env
 
 **nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
-- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com staging.example.com`)
 - `NEXTCLOUD_LAN_IP` - LAN IP for direct access
 - `NEXTCLOUD_LAN_PORT` - Port for LAN direct access (default: 8888)
 - `POSTGRES_PASSWORD` - Database password (change this!)
@@ -115,7 +114,7 @@ docker compose -f gitea/docker-compose.yaml up -d
 
 ### 8. Copy hook scripts to the volume directory
 
-The hook scripts automate initial Nextcloud configuration (trusted domains, trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
+The hook scripts automate initial Nextcloud configuration (trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
 
 ```bash
 source nextcloud/.env
@@ -127,7 +126,18 @@ sudo chmod +x ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/*.sh ${NEXTCLOUD_HOOKS_
 
 These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
 
-### 9. Configure notify_push
+### 9. Complete initial setup and add trusted domains
+
+1. Access Nextcloud via LAN at `http://<NEXTCLOUD_LAN_IP>:<NEXTCLOUD_LAN_PORT>` and complete the setup wizard
+2. Add your public domain(s) as trusted domains:
+   ```bash
+   docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="cloud.yourdomain.com"
+   ```
+   Increment the index (`2`, `3`, ...) for additional domains.
+
+Nextcloud is only accessible via LAN until this step is completed, preventing exposure of the setup wizard to the internet.
+
+### 10. Configure notify_push
 
 1. In Nextcloud, install the **Client Push** app
 2. Start the notify_push service:
@@ -140,7 +150,7 @@ These scripts run automatically during Nextcloud's initial installation and conf
    docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
    ```
 
-### 10. Configure HaRP/AppAPI
+### 11. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:

@@ -1,18 +1,6 @@
 #!/bin/bash
 # Post-installation hook - runs after Nextcloud is installed
 
-# Trusted domains from environment variable (space-separated)
-index=0
-for domain in ${NEXTCLOUD_TRUSTED_DOMAINS}; do
-    php occ config:system:set trusted_domains $index --value="$domain"
-    ((index++))
-done
-
-# LAN IP with port for direct access
-if [ -n "${NEXTCLOUD_LAN_IP}" ]; then
-    php occ config:system:set trusted_domains $index --value="${NEXTCLOUD_LAN_IP}:${NEXTCLOUD_LAN_PORT:-8888}"
-fi
-
 # Trusted proxies (Docker internal networks)
 php occ config:system:set trusted_proxies 0 --value="172.16.0.0/12"
 php occ config:system:set trusted_proxies 1 --value="10.0.0.0/8"
