@@ -108,14 +108,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 5. Add a proxy host for your Gitea domain pointing to `gitea_app:3000`
 6. In the Cloudflare Tunnel config, add public hostnames for your domains (e.g., `cloud.yourdomain.com`, `git.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
 
-### 7. Start the Nextcloud and Gitea stacks
-
-```bash
-docker compose -f nextcloud/docker-compose.yaml up -d
-docker compose -f gitea/docker-compose.yaml up -d
-```
-
-### 8. Copy hook scripts to the volume directory
+### 7. Copy hook scripts to the volume directory
 
 The hook scripts automate initial Nextcloud configuration (trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
 
@@ -127,6 +120,13 @@ sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-inst
 ```
 
 These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
+
+### 8. Start the Nextcloud and Gitea stacks
+
+```bash
+docker compose -f nextcloud/docker-compose.yaml up -d
+docker compose -f gitea/docker-compose.yaml up -d
+```
 
 ### 9. Configure notify_push
 
