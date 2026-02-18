@@ -113,7 +113,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 These hook scripts run automatically during Nextcloud's first startup to configure trusted proxies, phone region, maintenance window, and database indices based on `nextcloud/.env`:
 
 ```bash
-source nextcloud/.env
+source nextcloud/.env && [ -n "${NEXTCLOUD_HOOKS_VOLUME}" ] || { echo "NEXTCLOUD_HOOKS_VOLUME is not set"; exit 1; }
 sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
 sudo cp nextcloud/hooks/pre-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
