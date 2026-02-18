@@ -12,6 +12,9 @@ php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
 # Maintenance window start hour (local timezone)
 php occ config:system:set maintenance_window_start --type=integer --value="${MAINTENANCE_WINDOW_START}"
 
+# Generate HTTPS links through the reverse proxy
+php occ config:system:set overwriteprotocol --value="https"
+
 # Add missing database indices
 php occ db:add-missing-indices
 

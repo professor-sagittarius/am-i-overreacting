@@ -162,7 +162,8 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 
 ## Notes
 
-- After installation, set `overwriteprotocol` to `https` so Nextcloud generates HTTPS links through NPM:
+- `overwriteprotocol` is set to `https` by the post-installation hook so Nextcloud generates HTTPS links through NPM. To temporarily switch to HTTP for LAN troubleshooting:
   ```bash
-  docker exec -u www-data nextcloud_app php occ config:system:set overwriteprotocol --value="https"
+  docker exec -u www-data nextcloud_app php occ config:system:set overwriteprotocol --value="http"
   ```
+  Set it back to `https` when done.
