@@ -110,7 +110,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 
 ### 7. Copy hook scripts to the volume directory
 
-The hook scripts automate initial Nextcloud configuration (trusted proxies, phone region, maintenance window, database indices). Copy them to the volume directory before first startup:
+These hook scripts run automatically during Nextcloud's first startup to configure trusted proxies, phone region, maintenance window, and database indices based on `nextcloud/.env`:
 
 ```bash
 source nextcloud/.env
@@ -118,8 +118,6 @@ sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation ${NEXTCLOUD_HOOKS_VOLUM
 sudo cp nextcloud/hooks/pre-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
 ```
-
-These scripts run automatically during Nextcloud's initial installation and configure settings based on `nextcloud/.env`.
 
 ### 8. Start the Nextcloud and Gitea stacks
 
