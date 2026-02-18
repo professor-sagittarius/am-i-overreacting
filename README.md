@@ -81,17 +81,17 @@ cp gitea/example.env gitea/.env
 **nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
 - `NEXTCLOUD_ADMIN_USER` - Admin username for automated installation
-- `NEXTCLOUD_ADMIN_PASSWORD` - Admin password (change this!)
+- `NEXTCLOUD_ADMIN_PASSWORD` - Admin password (change this to something secure!)
 - `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com`)
 - `NEXTCLOUD_LAN_IP` - LAN IP for direct access
 - `NEXTCLOUD_LAN_PORT` - Port for LAN direct access (default: 8888)
-- `POSTGRES_PASSWORD` - Database password (change this!)
-- `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this!)
-- `DOCKER_VOLUME_DIR` - Base path for Nextcloud data
+- `POSTGRES_PASSWORD` - Database password (change this to something secure!)
+- `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this to something secure! Also you will need it in Step 10)
+- `DOCKER_VOLUME_DIR` - Base path for Nextcloud persistent files
 
 **gitea/.env**
-- `POSTGRES_PASSWORD` - Database password (change this!)
-- `DOCKER_VOLUME_DIR` - Base path for Gitea data
+- `POSTGRES_PASSWORD` - Database password (change this to something secure!)
+- `DOCKER_VOLUME_DIR` - Base path for Gitea persistent files
 
 ### 5. Start the reverse-proxy stack
 
