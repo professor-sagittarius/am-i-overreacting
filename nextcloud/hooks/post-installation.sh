@@ -7,17 +7,23 @@ php occ config:system:set trusted_proxies 1 --value="10.0.0.0/8"
 php occ config:system:set trusted_proxies 2 --value="192.168.0.0/16"
 
 # Default phone region (ISO 3166-1 country code)
-php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
+if [ -n "${DEFAULT_PHONE_REGION}" ]; then
+  php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
+fi
 
 # Maintenance window start hour (local timezone)
-php occ config:system:set maintenance_window_start --type=integer --value="${MAINTENANCE_WINDOW_START}"
+if [ -n "${MAINTENANCE_WINDOW_START}" ]; then
+  php occ config:system:set maintenance_window_start --type=integer --value="${MAINTENANCE_WINDOW_START}"
+fi
 
 # Generate HTTPS links through the reverse proxy
 php occ config:system:set overwriteprotocol --value="https"
 
 # Set CLI URL to first trusted domain (used for self-checks including HSTS validation)
-PRIMARY_DOMAIN=$(echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | awk '{print $1}')
-php occ config:system:set overwrite.cli.url --value="https://${PRIMARY_DOMAIN}"
+if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS}" ]; then
+  PRIMARY_DOMAIN=$(echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | awk '{print $1}')
+  php occ config:system:set overwrite.cli.url --value="https://${PRIMARY_DOMAIN}"
+fi
 
 # Use system cron for background jobs
 php occ background:cron
