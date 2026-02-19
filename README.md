@@ -66,13 +66,16 @@ docker network create proxy_network
 
 ### 4. Configure environment files
 
-Copy the example environment files and edit them with your values:
+Copy the example environment files and edit the `.env` files with your values:
 
 ```bash
 cp reverse-proxy/example.env reverse-proxy/.env
 cp nextcloud/example.env nextcloud/.env
 cp gitea/example.env gitea/.env
+bash generate-passwords.sh
 ```
+
+The `generate-passwords.sh` script replaces all default passwords with secure random values.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
@@ -81,17 +84,17 @@ cp gitea/example.env gitea/.env
 **nextcloud/.env**
 - `NEXTCLOUD_VERSION` - Nextcloud image tag
 - `NEXTCLOUD_ADMIN_USER` - Admin username for automated installation
-- `NEXTCLOUD_ADMIN_PASSWORD` - Admin password (change this to something secure!)
+- `NEXTCLOUD_ADMIN_PASSWORD` - Admin password (set by `generate-passwords.sh`)
 - `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com`)
 - `NEXTCLOUD_LAN_IP` - LAN IP for direct access
 - `NEXTCLOUD_LAN_PORT` - Port for LAN direct access (default: 8888)
-- `POSTGRES_PASSWORD` - Database password (change this to something secure!)
+- `POSTGRES_PASSWORD` - Database password (set by `generate-passwords.sh`)
 - `NEXTCLOUD_APPS` - Space-separated list of apps to install automatically (e.g., `notify_push calendar contacts`)
-- `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this to something secure! Also you will need it in Step 10)
+- `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (set by `generate-passwords.sh`, also needed in Step 11)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud persistent files
 
 **gitea/.env**
-- `POSTGRES_PASSWORD` - Database password (change this to something secure!)
+- `POSTGRES_PASSWORD` - Database password (set by `generate-passwords.sh`)
 - `DOCKER_VOLUME_DIR` - Base path for Gitea persistent files
 
 ### 5. Start the reverse-proxy stack
