@@ -15,6 +15,11 @@ php occ config:system:set maintenance_window_start --type=integer --value="${MAI
 # Generate HTTPS links through the reverse proxy
 php occ config:system:set overwriteprotocol --value="https"
 
+# Install apps from NEXTCLOUD_APPS
+for app in ${NEXTCLOUD_APPS}; do
+  php occ app:install "$app"
+done
+
 # Add missing database indices
 php occ db:add-missing-indices
 

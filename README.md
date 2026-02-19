@@ -86,6 +86,7 @@ cp gitea/example.env gitea/.env
 - `NEXTCLOUD_LAN_IP` - LAN IP for direct access
 - `NEXTCLOUD_LAN_PORT` - Port for LAN direct access (default: 8888)
 - `POSTGRES_PASSWORD` - Database password (change this to something secure!)
+- `NEXTCLOUD_APPS` - Space-separated list of apps to install automatically (e.g., `notify_push calendar contacts`)
 - `HP_SHARED_KEY` - HaRP shared key for ExApp authentication (change this to something secure! Also you will need it in Step 10)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud persistent files
 
@@ -130,16 +131,11 @@ docker compose -f gitea/docker-compose.yaml up -d
 
 ### 9. Configure notify_push
 
-1. In Nextcloud, install the **Client Push** app
-2. Start the notify_push service:
-   ```bash
-   docker compose -f nextcloud/docker-compose.yaml --profile notify_push up -d
-   ```
-   **Portainer**: Instead, add environment variable `COMPOSE_PROFILES=notify_push` and redeploy the stack.
-3. Run the setup command:
-   ```bash
-   docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
-   ```
+The notify_push app is installed automatically by the post-installation hook (if included in `NEXTCLOUD_APPS`), and its container starts once the healthcheck confirms Nextcloud is ready. Run the setup command to complete the configuration:
+
+```bash
+docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
+```
 
 ### 10. Configure HaRP/AppAPI
 
@@ -169,3 +165,15 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
   docker exec -u www-data nextcloud_app php occ config:system:set overwriteprotocol --value="http"
   ```
   Set it back to `https` when done.
+
+- **Switching domains** (e.g., between staging and production): Update the following:
+  1. Re-run notify_push setup with the new domain:
+     ```bash
+     docker exec -u www-data nextcloud_app php occ notify_push:setup https://newdomain.example.com/push
+     ```
+  2. If the new domain wasn't included in `NEXTCLOUD_TRUSTED_DOMAINS` during initial setup, add it. Note that each command overwrites a single index, so list all domains you want to keep:
+     ```bash
+     docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 0 --value="newdomain.example.com"
+     docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="192.168.1.100:8888"
+     ```
+  3. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
