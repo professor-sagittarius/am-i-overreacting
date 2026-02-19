@@ -118,6 +118,7 @@ sudo mkdir -p ${NEXTCLOUD_DATA_VOLUME}
 sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
 sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
+sudo chmod +x ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/post-installation.sh
 ```
 
 ### 8. Start the Nextcloud and Gitea stacks
