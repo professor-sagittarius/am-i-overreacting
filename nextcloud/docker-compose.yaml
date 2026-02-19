@@ -26,7 +26,6 @@ services:
     volumes:
       - ${NEXTCLOUD_APP_VOLUME}:/var/www/html
       - ${NEXTCLOUD_DATA_VOLUME}:${NEXTCLOUD_DATA_DIR} #https://docs.nextcloud.com/server/latest/admin_manual/installation/harden_server.html#place-data-directory-outside-of-the-web-root
-      - ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation:/docker-entrypoint-hooks.d/pre-installation:ro
       - ${NEXTCLOUD_HOOKS_VOLUME}/post-installation:/docker-entrypoint-hooks.d/post-installation:ro
     networks:
       - nextcloud

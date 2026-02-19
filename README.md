@@ -108,14 +108,15 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 5. Add a proxy host for your Gitea domain pointing to `gitea_app:3000`
 6. In the Cloudflare Tunnel config, add public hostnames for your domains (e.g., `cloud.yourdomain.com`, `git.yourdomain.com`) and set the service to `https://nginx-proxy-manager:443`
 
-### 7. Copy hook scripts to the volume directory
+### 7. Prepare Nextcloud volumes
 
-These hook scripts run automatically during Nextcloud's first startup to configure trusted proxies, phone region, maintenance window, and database indices based on `nextcloud/.env`:
+Create the data directory with correct ownership for `www-data` (UID 33), and copy the post-installation hook which runs automatically during Nextcloud's first startup to configure trusted proxies, phone region, maintenance window, and database indices based on `nextcloud/.env`:
 
 ```bash
 source nextcloud/.env && [ -n "${NEXTCLOUD_HOOKS_VOLUME}" ] || { echo "NEXTCLOUD_HOOKS_VOLUME is not set"; exit 1; }
-sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
-sudo cp nextcloud/hooks/pre-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/pre-installation/
+sudo mkdir -p ${NEXTCLOUD_DATA_VOLUME}
+sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
+sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
 ```
 
