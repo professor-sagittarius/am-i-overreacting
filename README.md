@@ -116,7 +116,7 @@ Create the data directory with correct ownership for `www-data` (UID 33), and co
 source nextcloud/.env && [ -n "${NEXTCLOUD_HOOKS_VOLUME}" ] || { echo "NEXTCLOUD_HOOKS_VOLUME is not set"; exit 1; }
 sudo mkdir -p ${NEXTCLOUD_DATA_VOLUME}
 sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
-sudo mkdir -p ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
+sudo mkdir -p -m 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
 sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/post-installation.sh
 ```
