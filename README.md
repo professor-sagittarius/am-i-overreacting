@@ -148,13 +148,9 @@ The notify_push app is installed automatically by the post-installation hook (if
 docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
 ```
 
-### 11. Configure HaRP/AppAPI
+### 11. Verify HaRP/AppAPI
 
-1. In Nextcloud, go to **Administration Settings → AppAPI**
-2. Register a new Deploy Daemon:
-   - **Host**: `nextcloud_harp:8780`
-   - **Network**: `exapps_network`
-   - **HaRP Shared Key**: Same as `HP_SHARED_KEY` in your env file
+The AppAPI deploy daemon is registered automatically by the post-installation hook using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** — you should see a "Harp Proxy (Docker)" daemon registered.
 
 ## Ports
 

@@ -44,6 +44,11 @@ if [ -n "${TALK_SIGNALING_URL}" ]; then
   php occ config:app:set spreed signaling_servers --value="{\"servers\":[{\"url\":\"${TALK_SIGNALING_URL}\",\"verify\":true}],\"secret\":\"${TALK_SIGNALING_SECRET}\"}"
 fi
 
+# Register AppAPI deploy daemon (HaRP)
+if [ -n "${HP_SHARED_KEY}" ]; then
+  php occ app_api:daemon:register harp_proxy_docker "Harp Proxy (Docker)" "docker-install" "http" "nextcloud_harp:8780" "http://nextcloud_app" --net exapps_network --harp --harp_frp_address "nextcloud_harp:8782" --harp_shared_key "${HP_SHARED_KEY}" --set-default
+fi
+
 # Add missing database indices
 php occ db:add-missing-indices
 
