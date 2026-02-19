@@ -50,7 +50,7 @@ if [ -n "${SMTP_NAME}" ]; then
   php occ config:system:set mail_smtphost --value="${SMTP_HOST}"
   php occ config:system:set mail_smtpport --type=integer --value="${SMTP_PORT}"
   php occ config:system:set mail_smtpsecure --value="${SMTP_SECURE}"
-  php occ config:system:set mail_smtpauth --type=integer --value="${SMTP_AUTH}"
+  php occ config:system:set mail_smtpauth --type=boolean --value="${SMTP_AUTH}"
   php occ config:system:set mail_smtpname --value="${SMTP_NAME}"
   if [ -n "${SMTP_PASSWORD}" ]; then
     php occ config:system:set mail_smtppassword --value="${SMTP_PASSWORD}"
