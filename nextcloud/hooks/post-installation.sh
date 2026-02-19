@@ -63,6 +63,14 @@ if [ -n "${SMTP_NAME}" ]; then
   fi
 fi
 
+# Configure Collabora Online (richdocuments)
+if [ -n "${COLLABORA_URL}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomain.com"; then
+  php occ config:app:set richdocuments wopi_url --value="${COLLABORA_URL}"
+  if [ -n "${COLLABORA_WOPI_ALLOWLIST}" ]; then
+    php occ config:app:set richdocuments wopi_allowlist --value="${COLLABORA_WOPI_ALLOWLIST}"
+  fi
+fi
+
 # Register AppAPI deploy daemon (HaRP)
 if [ -n "${HP_SHARED_KEY}" ]; then
   php occ app_api:daemon:register harp_proxy_docker "Harp Proxy (Docker)" "docker-install" "http" "nextcloud_harp:8780" "http://nextcloud_app" --net exapps_network --harp --harp_frp_address "nextcloud_harp:8782" --harp_shared_key "${HP_SHARED_KEY}" --set-default
