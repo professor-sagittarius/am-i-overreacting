@@ -20,7 +20,7 @@ fi
 php occ config:system:set overwriteprotocol --value="https"
 
 # Set CLI URL to first trusted domain (used for self-checks including HSTS validation)
-if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS}" ]; then
+if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS}" ] && ! echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | grep -q "yourdomain.com"; then
   PRIMARY_DOMAIN=$(echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | awk '{print $1}')
   php occ config:system:set overwrite.cli.url --value="https://${PRIMARY_DOMAIN}"
 fi
@@ -37,11 +37,30 @@ done
 if [ -n "${TALK_STUN_SERVER}" ]; then
   php occ config:app:set spreed stun_servers --value="[{\"url\":\"${TALK_STUN_SERVER}\"}]"
 fi
-if [ -n "${TALK_TURN_SERVER}" ]; then
+if [ -n "${TALK_TURN_SERVER}" ] && ! echo "${TALK_TURN_SERVER}" | grep -q "yourdomain.com"; then
   php occ config:app:set spreed turn_servers --value="[{\"url\":\"${TALK_TURN_SERVER}\",\"secret\":\"${TALK_TURN_SECRET}\",\"protocols\":\"${TALK_TURN_PROTOCOLS}\",\"schemes\":\"${TALK_TURN_SCHEMES}\"}]"
 fi
-if [ -n "${TALK_SIGNALING_URL}" ]; then
+if [ -n "${TALK_SIGNALING_URL}" ] && ! echo "${TALK_SIGNALING_URL}" | grep -q "yourdomain.com"; then
   php occ config:app:set spreed signaling_servers --value="{\"servers\":[{\"url\":\"${TALK_SIGNALING_URL}\",\"verify\":true}],\"secret\":\"${TALK_SIGNALING_SECRET}\"}"
+fi
+
+# Configure outgoing email server
+if [ -n "${SMTP_NAME}" ]; then
+  php occ config:system:set mail_smtpmode --value="smtp"
+  php occ config:system:set mail_smtphost --value="${SMTP_HOST}"
+  php occ config:system:set mail_smtpport --type=integer --value="${SMTP_PORT}"
+  php occ config:system:set mail_smtpsecure --value="${SMTP_SECURE}"
+  php occ config:system:set mail_smtpauth --type=integer --value="${SMTP_AUTH}"
+  php occ config:system:set mail_smtpname --value="${SMTP_NAME}"
+  if [ -n "${SMTP_PASSWORD}" ]; then
+    php occ config:system:set mail_smtppassword --value="${SMTP_PASSWORD}"
+  fi
+  if [ -n "${MAIL_FROM_ADDRESS}" ]; then
+    php occ config:system:set mail_from_address --value="${MAIL_FROM_ADDRESS}"
+  fi
+  if [ -n "${MAIL_DOMAIN}" ] && ! echo "${MAIL_DOMAIN}" | grep -q "yourdomain.com"; then
+    php occ config:system:set mail_domain --value="${MAIL_DOMAIN}"
+  fi
 fi
 
 # Register AppAPI deploy daemon (HaRP)
