@@ -1,11 +1,6 @@
 #!/bin/bash
 # Post-installation hook - runs after Nextcloud is installed
 
-# Trusted proxies (Docker internal networks)
-php occ config:system:set trusted_proxies 0 --value="172.16.0.0/12"
-php occ config:system:set trusted_proxies 1 --value="10.0.0.0/8"
-php occ config:system:set trusted_proxies 2 --value="192.168.0.0/16"
-
 # Default phone region (ISO 3166-1 country code)
 if [ -n "${DEFAULT_PHONE_REGION}" ]; then
   php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
@@ -15,9 +10,6 @@ fi
 if [ -n "${MAINTENANCE_WINDOW_START}" ]; then
   php occ config:system:set maintenance_window_start --type=integer --value="${MAINTENANCE_WINDOW_START}"
 fi
-
-# Generate HTTPS links through the reverse proxy
-php occ config:system:set overwriteprotocol --value="https"
 
 # Set CLI URL to first trusted domain (used for self-checks including HSTS validation)
 if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS}" ] && ! echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | grep -q "yourdomain.com"; then
@@ -42,25 +34,6 @@ if [ -n "${TALK_TURN_SERVER}" ] && ! echo "${TALK_TURN_SERVER}" | grep -q "yourd
 fi
 if [ -n "${TALK_SIGNALING_URL}" ] && ! echo "${TALK_SIGNALING_URL}" | grep -q "yourdomain.com"; then
   php occ config:app:set spreed signaling_servers --value="{\"servers\":[{\"url\":\"${TALK_SIGNALING_URL}\",\"verify\":true}],\"secret\":\"${TALK_SIGNALING_SECRET}\"}"
-fi
-
-# Configure outgoing email server
-if [ -n "${SMTP_NAME}" ]; then
-  php occ config:system:set mail_smtpmode --value="smtp"
-  php occ config:system:set mail_smtphost --value="${SMTP_HOST}"
-  php occ config:system:set mail_smtpport --type=integer --value="${SMTP_PORT}"
-  php occ config:system:set mail_smtpsecure --value="${SMTP_SECURE}"
-  php occ config:system:set mail_smtpauth --type=boolean --value="${SMTP_AUTH}"
-  php occ config:system:set mail_smtpname --value="${SMTP_NAME}"
-  if [ -n "${SMTP_PASSWORD}" ]; then
-    php occ config:system:set mail_smtppassword --value="${SMTP_PASSWORD}"
-  fi
-  if [ -n "${MAIL_FROM_ADDRESS}" ]; then
-    php occ config:system:set mail_from_address --value="${MAIL_FROM_ADDRESS}"
-  fi
-  if [ -n "${MAIL_DOMAIN}" ] && ! echo "${MAIL_DOMAIN}" | grep -q "yourdomain.com"; then
-    php occ config:system:set mail_domain --value="${MAIL_DOMAIN}"
-  fi
 fi
 
 # Configure Collabora Online (richdocuments)
