@@ -72,6 +72,7 @@ Copy the example environment files and edit the `.env` files with your values:
 cp reverse-proxy/example.env reverse-proxy/.env
 cp nextcloud/example.env nextcloud/.env
 cp gitea/example.env gitea/.env
+chmod 600 reverse-proxy/.env nextcloud/.env gitea/.env
 bash generate-passwords.sh
 ```
 
