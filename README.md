@@ -75,7 +75,7 @@ cp gitea/example.env gitea/.env
 bash generate-passwords.sh
 ```
 
-The `generate-passwords.sh` script replaces all default passwords with secure random values.
+The `generate-passwords.sh` script replaces all default passwords with secure random values. Copy these somewhere safe, like a password manager.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
