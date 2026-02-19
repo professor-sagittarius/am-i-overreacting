@@ -175,13 +175,17 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
   Set it back to `https` when done.
 
 - **Switching domains** (e.g., between staging and production): Update the following:
-  1. Re-run notify_push setup with the new domain:
+  1. Update `overwrite.cli.url` to the new primary domain:
+     ```bash
+     docker exec -u www-data nextcloud_app php occ config:system:set overwrite.cli.url --value="https://newdomain.example.com"
+     ```
+  2. Re-run notify_push setup with the new domain:
      ```bash
      docker exec -u www-data nextcloud_app php occ notify_push:setup https://newdomain.example.com/push
      ```
-  2. If the new domain wasn't included in `NEXTCLOUD_TRUSTED_DOMAINS` during initial setup, add it. Note that each command overwrites a single index, so list all domains you want to keep:
+  3. If the new domain wasn't included in `NEXTCLOUD_TRUSTED_DOMAINS` during initial setup, add it. Note that each command overwrites a single index, so list all domains you want to keep:
      ```bash
      docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 0 --value="newdomain.example.com"
      docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="192.168.1.100:8888"
      ```
-  3. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
+  4. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
