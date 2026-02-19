@@ -129,7 +129,15 @@ docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
 ```
 
-### 9. Configure notify_push
+### 9. Set up cron
+
+Add a crontab entry on the host to run Nextcloud's background jobs every 5 minutes:
+
+```bash
+(crontab -l 2>/dev/null; echo "*/5 * * * * docker exec -u www-data nextcloud_app php -f /var/www/html/cron.php") | crontab -
+```
+
+### 10. Configure notify_push
 
 The notify_push app is installed automatically by the post-installation hook (if included in `NEXTCLOUD_APPS`), and its container starts once the healthcheck confirms Nextcloud is ready. Run the setup command to complete the configuration:
 
@@ -137,7 +145,7 @@ The notify_push app is installed automatically by the post-installation hook (if
 docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
 ```
 
-### 10. Configure HaRP/AppAPI
+### 11. Configure HaRP/AppAPI
 
 1. In Nextcloud, go to **Administration Settings → AppAPI**
 2. Register a new Deploy Daemon:
