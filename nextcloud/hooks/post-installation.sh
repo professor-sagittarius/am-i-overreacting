@@ -52,6 +52,14 @@ if [ -n "${COLLABORA_URL}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomain.
   fi
 fi
 
+# Configure ClamAV antivirus (files_antivirus) in daemon mode
+php occ config:app:set files_antivirus av_mode --value="daemon"
+php occ config:app:set files_antivirus av_host --value="nextcloud_clamav"
+php occ config:app:set files_antivirus av_port --value="3310"
+php occ config:app:set files_antivirus av_stream_max_length --value="26214400"
+php occ config:app:set files_antivirus av_max_file_size --value="-1"
+php occ config:app:set files_antivirus av_infected_action --value="only_log"
+
 # Register AppAPI deploy daemon (HaRP)
 if [ -n "${HP_SHARED_KEY}" ]; then
   php occ app_api:daemon:register harp_proxy_docker "Harp Proxy (Docker)" "docker-install" "http" "nextcloud_harp:8780" "http://nextcloud_app" --net exapps_network --harp --harp_frp_address "nextcloud_harp:8782" --harp_shared_key "${HP_SHARED_KEY}" --set-default

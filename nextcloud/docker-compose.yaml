@@ -88,6 +88,15 @@ services:
       - proxy
       - nextcloud
 
+  nextcloud_clamav:
+    image: clamav/clamav:stable_base
+    container_name: nextcloud_clamav
+    restart: unless-stopped
+    volumes:
+      - ${CLAMAV_DB_VOLUME}:/var/lib/clamav
+    networks:
+      - nextcloud
+
   nextcloud_harp:
     image: ghcr.io/nextcloud/nextcloud-appapi-harp:release
     container_name: nextcloud_harp
