@@ -88,6 +88,20 @@ services:
       - proxy
       - nextcloud
 
+  nextcloud_elasticsearch:
+    image: nextcloud/aio-fulltextsearch:latest
+    container_name: nextcloud_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${ELASTICSEARCH_DATA_VOLUME}:/usr/share/elasticsearch/data
+    networks:
+      - nextcloud
+
   nextcloud_clamav:
     image: clamav/clamav:stable_base
     container_name: nextcloud_clamav

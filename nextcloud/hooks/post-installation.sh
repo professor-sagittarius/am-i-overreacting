@@ -52,6 +52,12 @@ if [ -n "${COLLABORA_URL}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomain.
   fi
 fi
 
+# Configure Full Text Search (fulltextsearch + elasticsearch)
+php occ config:app:set fulltextsearch search_platform --value="OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"
+php occ config:app:set fulltextsearch_elasticsearch elastic_host --value="http://nextcloud_elasticsearch:9200"
+php occ config:app:set fulltextsearch_elasticsearch elastic_index --value="nextcloud"
+php occ fulltextsearch:index &
+
 # Configure ClamAV antivirus (files_antivirus) in daemon mode
 php occ config:app:set files_antivirus av_mode --value="daemon"
 php occ config:app:set files_antivirus av_host --value="nextcloud_clamav"
