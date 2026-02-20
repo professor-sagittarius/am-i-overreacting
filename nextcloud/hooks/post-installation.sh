@@ -25,17 +25,6 @@ for app in ${NEXTCLOUD_APPS}; do
   php occ app:install "$app"
 done
 
-# Configure Talk STUN/TURN/signaling servers
-if [ -n "${TALK_STUN_SERVER}" ]; then
-  php occ config:app:set spreed stun_servers --value="[{\"url\":\"${TALK_STUN_SERVER}\"}]"
-fi
-if [ -n "${TALK_TURN_SERVER}" ] && ! echo "${TALK_TURN_SERVER}" | grep -q "yourdomain.com"; then
-  php occ config:app:set spreed turn_servers --value="[{\"url\":\"${TALK_TURN_SERVER}\",\"secret\":\"${TALK_TURN_SECRET}\",\"protocols\":\"${TALK_TURN_PROTOCOLS}\",\"schemes\":\"${TALK_TURN_SCHEMES}\"}]"
-fi
-if [ -n "${TALK_SIGNALING_URL}" ] && ! echo "${TALK_SIGNALING_URL}" | grep -q "yourdomain.com"; then
-  php occ config:app:set spreed signaling_servers --value="{\"servers\":[{\"url\":\"${TALK_SIGNALING_URL}\",\"verify\":true}],\"secret\":\"${TALK_SIGNALING_SECRET}\"}"
-fi
-
 # Configure Collabora Online (richdocuments)
 if [ -n "${COLLABORA_URL}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomain.com"; then
   php occ config:app:set richdocuments wopi_url --value="${COLLABORA_URL}"
