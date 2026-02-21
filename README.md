@@ -33,6 +33,8 @@ LAN → :8888 → Nextcloud (direct)
 - **nextcloud_postgres** - PostgreSQL database
 - **nextcloud_redis** - Redis cache
 - **nextcloud_notify_push** - Push notifications (High Performance Backend for files)
+- **nextcloud_elasticsearch** - Elasticsearch for full text search
+- **nextcloud_clamav** - ClamAV antivirus scanner
 - **nextcloud_harp** - HaRP reverse proxy for ExApps (AppAPI)
 
 ### gitea/docker-compose.yaml
@@ -122,6 +124,8 @@ source nextcloud/.env && [ -n "${NEXTCLOUD_HOOKS_VOLUME}" ] || { echo "NEXTCLOUD
 sudo mkdir -p ${NEXTCLOUD_DATA_VOLUME}
 sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
 sudo mkdir -p -m 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
+sudo mkdir -p ${ELASTICSEARCH_DATA_VOLUME}
+sudo chown 1000:1000 ${ELASTICSEARCH_DATA_VOLUME}
 sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
 sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/post-installation.sh
 ```
