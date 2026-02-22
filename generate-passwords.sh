@@ -12,7 +12,7 @@ for env_file in ${ENV_FILES}; do
   while IFS= read -r line; do
     if echo "${line}" | grep -q '=changeme'; then
       key=$(echo "${line}" | cut -d'=' -f1)
-      password=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+      password=$(openssl rand -base64 64 | tr -d '/+=' | head -c 64)
       sed -i "s|^${key}=changeme|${key}=${password}|" "${env_file}"
       echo "Generated password for ${key} in ${env_file}"
       REPLACED=$((REPLACED + 1))
