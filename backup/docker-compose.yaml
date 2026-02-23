@@ -1,0 +1,35 @@
+services:
+  borgmatic:
+    image: ghcr.io/borgmatic-collective/borgmatic:latest
+    container_name: borgmatic
+    restart: unless-stopped
+    environment:
+      - BORGMATIC_CRON_SCHEDULE=0 2 * * * # Daily at 2am
+      - BORGBASE_REPO=${BORGBASE_REPO}
+      - BORG_PASSPHRASE=${BORG_PASSPHRASE}
+      - NEXTCLOUD_DB=${NEXTCLOUD_DB}
+      - NEXTCLOUD_DB_USER=${NEXTCLOUD_DB_USER}
+      - NEXTCLOUD_DB_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
+      - GITEA_DB=${GITEA_DB}
+      - GITEA_DB_USER=${GITEA_DB_USER}
+      - GITEA_DB_PASSWORD=${GITEA_DB_PASSWORD}
+    volumes:
+      - ./borgmatic.yaml:/etc/borgmatic.d/config.yaml:ro
+      - ${SSH_KEY_PATH}:/root/.ssh/id_ed25519:ro
+      - ${NEXTCLOUD_APP_VOLUME}:/mnt/nextcloud-app:ro
+      - ${NEXTCLOUD_DATA_VOLUME}:/mnt/nextcloud-data:ro
+      - ${GITEA_DATA_VOLUME}:/mnt/gitea-data:ro
+      - ${VAULTWARDEN_DATA_VOLUME}:/mnt/vaultwarden-data:ro
+      - ${BORGMATIC_STATE_VOLUME}:/root/.borgmatic
+      - ${BORG_CACHE_VOLUME}:/root/.cache/borg
+    networks:
+      - nextcloud
+      - gitea
+
+networks:
+  nextcloud:
+    name: nextcloud_network
+    external: true
+  gitea:
+    name: gitea_network
+    external: true
