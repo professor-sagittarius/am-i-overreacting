@@ -1,7 +1,7 @@
 #!/bin/bash
 # Replaces all 'changeme' default passwords in .env files with secure random passwords
 
-ENV_FILES="nextcloud/.env gitea/.env"
+ENV_FILES="nextcloud/.env gitea/.env vaultwarden/.env backup/.env"
 REPLACED=0
 
 for env_file in ${ENV_FILES}; do
