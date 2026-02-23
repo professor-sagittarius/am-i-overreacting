@@ -12,7 +12,11 @@ services:
       - ${NPM_LETSENCRYPT_VOLUME}:/etc/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - proxy
+      - tunnel
+      - nextcloud_proxy
+      - gitea_proxy
+      - vaultwarden_proxy
+      - uptime_kuma_proxy
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -22,9 +26,21 @@ services:
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
-      - proxy
+      - tunnel
 
 networks:
-  proxy:
-    name: proxy_network
+  tunnel:
+    name: tunnel_network
+    driver: bridge
+  nextcloud_proxy:
+    name: nextcloud_proxy_network
+    external: true
+  gitea_proxy:
+    name: gitea_proxy_network
+    external: true
+  vaultwarden_proxy:
+    name: vaultwarden_proxy_network
+    external: true
+  uptime_kuma_proxy:
+    name: uptime_kuma_proxy_network
     external: true
