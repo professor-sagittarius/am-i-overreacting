@@ -10,10 +10,10 @@ Internet → Cloudflare Tunnel → NPM → Nextcloud
                                    → Gitea
                                    → Vaultwarden
                                    → Uptime Kuma
-LAN → :8888 → Nextcloud (direct)
-    → :8780 → HaRP/ExApps (direct)
-    → :3000 → Gitea (direct)
-    → :2222 → Gitea SSH (direct)
+LAN → :8888 → Nextcloud
+    → :8780 → HaRP/ExApps
+    → :3000 → Gitea
+    → :2222 → Gitea SSH
 ```
 
 ### Networks
