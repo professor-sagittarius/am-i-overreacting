@@ -108,7 +108,7 @@ bash generate-passwords.sh
 
 The `generate-passwords.sh` script replaces all `=changeme` default passwords with secure random values. Copy these somewhere safe, like a password manager.
 
-> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` — no manual copying needed. Store `BORG_PASSPHRASE` in a password manager: loss means backups are irrecoverable.
+> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` - no manual copying needed. Store `BORG_PASSPHRASE` in a password manager: loss means backups are irrecoverable.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
@@ -128,9 +128,9 @@ The `generate-passwords.sh` script replaces all `=changeme` default passwords wi
 
 **backup/.env**
 - `BORGBASE_REPO` - Borgbase SSH repository URL (e.g., `ssh://user@xxx.repo.borgbase.com/./repo`)
-- `BORG_PASSPHRASE` - Encryption passphrase (set by `generate-passwords.sh`); store separately in a password manager — loss means backups are irrecoverable
+- `BORG_PASSPHRASE` - Encryption passphrase (set by `generate-passwords.sh`); store separately in a password manager - loss means backups are irrecoverable
 - `SSH_KEY_PATH` - Path to the Borgbase SSH private key on the host (default: `/root/.ssh/borgbase_ed25519`)
-- Nextcloud and Gitea volume paths and DB credentials — copy from their respective `.env` files
+- Nextcloud, Gitea, and Vaultwarden volume paths and DB credentials - populated automatically by `generate-passwords.sh`
 
 ### 5. Start the reverse-proxy stack
 
@@ -147,8 +147,8 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
    - Gitea domain → `gitea_app:3000`
    - Vaultwarden domain → `vaultwarden:80`
    - Uptime Kuma domain → `uptime_kuma:3001`
-   - Whiteboard domain → `nextcloud_whiteboard:3002` *(if whiteboard profile enabled)*
-4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the Nextcloud proxy host — this configures security headers, large file uploads, and the notify_push WebSocket proxy
+   - Whiteboard domain → `nextcloud_whiteboard:3002` *(if whiteboard profile enabled; enable **WebSockets Support** in the NPM proxy host settings)*
+4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the Nextcloud proxy host - this configures security headers, large file uploads, and the notify_push WebSocket proxy
 5. In the Cloudflare Tunnel config, add public hostnames pointing to `https://nginx-proxy-manager:443` for each domain
 
 ### 7. Prepare Nextcloud volumes
@@ -203,7 +203,7 @@ This may take some time depending on the number of files.
 
 ### 12. Verify HaRP/AppAPI
 
-The AppAPI deploy daemon is registered automatically by the post-installation hook using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** — you should see a "Harp Proxy (Docker)" daemon registered.
+The AppAPI deploy daemon is registered automatically by the post-installation hook using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** - you should see a "Harp Proxy (Docker)" daemon registered.
 
 ### 13. Start Vaultwarden and Uptime Kuma
 
@@ -273,7 +273,7 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 - **Security notes**:
   - Rename the Nextcloud admin account (`admin` is an obvious target) after first login
   - Disable the Vaultwarden admin panel after initial setup (`VAULTWARDEN_ADMIN_TOKEN=`)
-  - Redis and Elasticsearch have no authentication — they are on the internal `nextcloud_network` only and not reachable from outside
-  - The `BORG_PASSPHRASE` should be stored in a password manager separately from the backup destination — if lost, encrypted backups cannot be recovered
+  - Redis and Elasticsearch have no authentication - they are on the internal `nextcloud_network` only and not reachable from outside
+  - The `BORG_PASSPHRASE` should be stored in a password manager separately from the backup destination - if lost, encrypted backups cannot be recovered
 
 - **Migrating from `proxy_network`**: If upgrading from the previous single shared proxy network, run `docker compose down` on all stacks, create the new networks, update `.env` files, and bring stacks back up.

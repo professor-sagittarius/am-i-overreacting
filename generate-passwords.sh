@@ -43,7 +43,7 @@ copy_to_backup() {
     sed -i "s|^${dest_var}=.*|${dest_var}=${value}|" backup/.env
     COPIED=$((COPIED + 1))
   else
-    echo "Warning: ${src_var} not set in ${src_file} — ${dest_var} in backup/.env left empty"
+    echo "Warning: ${src_var} not set in ${src_file} - ${dest_var} in backup/.env left empty"
   fi
 }
 
