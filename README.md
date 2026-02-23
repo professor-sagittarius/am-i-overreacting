@@ -106,9 +106,9 @@ chmod 600 reverse-proxy/.env nextcloud/.env gitea/.env vaultwarden/.env uptime-k
 bash generate-passwords.sh
 ```
 
-The `generate-passwords.sh` script replaces all `=changeme` default passwords with secure random values. Copy these somewhere safe, like a password manager.
+The `generate-passwords.sh` script replaces all `=changeme` default passwords with secure random values. Copy these somewhere safe - store them in Vaultwarden once it is set up (step 13), or in another secure location in the meantime.
 
-> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` - no manual copying needed. Store `BORG_PASSPHRASE` in a password manager: loss means backups are irrecoverable.
+> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` - no manual copying needed. Store `BORG_PASSPHRASE` in Vaultwarden or another secure location - loss means backups are irrecoverable.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
@@ -128,7 +128,7 @@ The `generate-passwords.sh` script replaces all `=changeme` default passwords wi
 
 **backup/.env**
 - `BORGBASE_REPO` - Borgbase SSH repository URL (e.g., `ssh://user@xxx.repo.borgbase.com/./repo`)
-- `BORG_PASSPHRASE` - Encryption passphrase (set by `generate-passwords.sh`); store separately in a password manager - loss means backups are irrecoverable
+- `BORG_PASSPHRASE` - Encryption passphrase (set by `generate-passwords.sh`); store in Vaultwarden or another secure location separately from the backup destination - loss means backups are irrecoverable
 - `SSH_KEY_PATH` - Path to the Borgbase SSH private key on the host (default: `/root/.ssh/borgbase_ed25519`)
 - Nextcloud, Gitea, and Vaultwarden volume paths and DB credentials - populated automatically by `generate-passwords.sh`
 
@@ -271,9 +271,6 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
   Set it back to `https` when done.
 
 - **Security notes**:
-  - Rename the Nextcloud admin account (`admin` is an obvious target) after first login
   - Disable the Vaultwarden admin panel after initial setup (`VAULTWARDEN_ADMIN_TOKEN=`)
   - Redis and Elasticsearch have no authentication - they are on the internal `nextcloud_network` only and not reachable from outside
-  - The `BORG_PASSPHRASE` should be stored in a password manager separately from the backup destination - if lost, encrypted backups cannot be recovered
-
-- **Migrating from `proxy_network`**: If upgrading from the previous single shared proxy network, run `docker compose down` on all stacks, create the new networks, update `.env` files, and bring stacks back up.
+  - The `BORG_PASSPHRASE` should be stored in Vaultwarden or another secure location separately from the backup destination - if lost, encrypted backups cannot be recovered
