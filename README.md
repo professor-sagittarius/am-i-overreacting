@@ -108,7 +108,7 @@ bash generate-passwords.sh
 
 The `generate-passwords.sh` script replaces all `=changeme` default passwords with secure random values. Copy these somewhere safe, like a password manager.
 
-> **backup/.env**: The DB passwords in this file must be copied manually from `nextcloud/.env` (`POSTGRES_PASSWORD`) and `gitea/.env` (`POSTGRES_PASSWORD`) — do not run `generate-passwords.sh` on backup/.env again after filling these in, as it will not overwrite already-set values but you should confirm `BORG_PASSPHRASE` was generated correctly.
+> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` — no manual copying needed. Store `BORG_PASSPHRASE` in a password manager: loss means backups are irrecoverable.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
