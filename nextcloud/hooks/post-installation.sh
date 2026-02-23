@@ -1,6 +1,9 @@
 #!/bin/bash
 # Post-installation hook - runs after Nextcloud is installed
 
+# Helper: check if a profile is enabled in COMPOSE_PROFILES
+profile_enabled() { echo ",${COMPOSE_PROFILES:-}," | grep -q ",$1,"; }
+
 # Default phone region (ISO 3166-1 country code)
 if [ -n "${DEFAULT_PHONE_REGION}" ]; then
   php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
@@ -52,19 +55,44 @@ if [ -n "${COLLABORA_URL}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomain.
   fi
 fi
 
+# Configure Imaginary for server-side preview generation
+if profile_enabled "imaginary"; then
+  php occ config:system:set preview_imaginary_url --value="http://nextcloud_imaginary:9000"
+  php occ config:system:set enabledPreviewProviders 0 --value="OC\\Preview\\Imaginary"
+  php occ config:system:set enabledPreviewProviders 1 --value="OC\\Preview\\ImaginaryPDF"
+  php occ config:system:set enabledPreviewProviders 2 --value="OC\\Preview\\Image"
+  php occ config:system:set enabledPreviewProviders 3 --value="OC\\Preview\\MarkDown"
+  php occ config:system:set enabledPreviewProviders 4 --value="OC\\Preview\\MP3"
+  php occ config:system:set enabledPreviewProviders 5 --value="OC\\Preview\\TXT"
+  php occ config:system:set enabledPreviewProviders 6 --value="OC\\Preview\\OpenDocument"
+  php occ config:system:set enabledPreviewProviders 7 --value="OC\\Preview\\Movie"
+  php occ config:system:set enabledPreviewProviders 8 --value="OC\\Preview\\Krita"
+fi
+
+# Configure Whiteboard server
+if profile_enabled "whiteboard"; then
+  php occ config:app:set whiteboard jwt_secret_key --value="${WHITEBOARD_JWT_SECRET}"
+  if [ -n "${WHITEBOARD_PUBLIC_URL}" ] && ! echo "${WHITEBOARD_PUBLIC_URL}" | grep -q "yourdomain.com"; then
+    php occ config:app:set whiteboard collabBackendUrl --value="${WHITEBOARD_PUBLIC_URL}"
+  fi
+fi
+
 # Configure Full Text Search (fulltextsearch + elasticsearch)
-php occ config:app:set fulltextsearch search_platform --value="OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"
-php occ config:app:set fulltextsearch_elasticsearch elastic_host --value="http://nextcloud_elasticsearch:9200"
-php occ config:app:set fulltextsearch_elasticsearch elastic_index --value="nextcloud"
-php occ fulltextsearch:index &
+if profile_enabled "fulltextsearch"; then
+  php occ config:app:set fulltextsearch search_platform --value="OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"
+  php occ config:app:set fulltextsearch_elasticsearch elastic_host --value="http://nextcloud_elasticsearch:9200"
+  php occ config:app:set fulltextsearch_elasticsearch elastic_index --value="nextcloud"
+fi
 
 # Configure ClamAV antivirus (files_antivirus) in daemon mode
-php occ config:app:set files_antivirus av_mode --value="daemon"
-php occ config:app:set files_antivirus av_host --value="nextcloud_clamav"
-php occ config:app:set files_antivirus av_port --value="3310"
-php occ config:app:set files_antivirus av_stream_max_length --value="26214400"
-php occ config:app:set files_antivirus av_max_file_size --value="-1"
-php occ config:app:set files_antivirus av_infected_action --value="only_log"
+if profile_enabled "clamav"; then
+  php occ config:app:set files_antivirus av_mode --value="daemon"
+  php occ config:app:set files_antivirus av_host --value="nextcloud_clamav"
+  php occ config:app:set files_antivirus av_port --value="3310"
+  php occ config:app:set files_antivirus av_stream_max_length --value="26214400"
+  php occ config:app:set files_antivirus av_max_file_size --value="-1"
+  php occ config:app:set files_antivirus av_infected_action --value="only_log"
+fi
 
 # Register AppAPI deploy daemon (HaRP)
 if [ -n "${HP_SHARED_KEY}" ]; then

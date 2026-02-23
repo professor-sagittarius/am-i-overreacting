@@ -42,6 +42,9 @@ services:
       - TALK_SIGNALING_SECRET=${TALK_SIGNALING_SECRET}
       - COLLABORA_URL=${COLLABORA_URL}
       - COLLABORA_WOPI_ALLOWLIST=${COLLABORA_WOPI_ALLOWLIST}
+      - WHITEBOARD_JWT_SECRET=${WHITEBOARD_JWT_SECRET}
+      - WHITEBOARD_PUBLIC_URL=${WHITEBOARD_PUBLIC_URL}
+      - COMPOSE_PROFILES=${COMPOSE_PROFILES}
       - TZ=${TIMEZONE}
     volumes:
       - ${NEXTCLOUD_APP_VOLUME}:/var/www/html
@@ -49,7 +52,7 @@ services:
       - ${NEXTCLOUD_HOOKS_VOLUME}/post-installation:/docker-entrypoint-hooks.d/post-installation:ro
     networks:
       - nextcloud
-      - proxy
+      - nextcloud_proxy
 
   nextcloud_postgres: #AIO uses postgres, so this instance should too
     image: postgres:17-alpine
@@ -85,13 +88,38 @@ services:
       - ${NEXTCLOUD_APP_VOLUME}/custom_apps:/var/www/html/custom_apps:ro
       - ${NEXTCLOUD_APP_VOLUME}/config:/var/www/html/config:ro
     networks:
-      - proxy
+      - nextcloud_proxy
+      - nextcloud
+
+  nextcloud_imaginary:
+    image: nextcloud/aio-imaginary:latest
+    container_name: nextcloud_imaginary
+    restart: unless-stopped
+    profiles: [imaginary]
+    cap_add:
+      - SYS_NICE # required for HEIC preview generation
+    environment:
+      - PORT=9000
+    networks:
+      - nextcloud
+
+  nextcloud_whiteboard:
+    image: ghcr.io/nextcloud-releases/whiteboard:stable
+    container_name: nextcloud_whiteboard
+    restart: unless-stopped
+    profiles: [whiteboard]
+    environment:
+      - NEXTCLOUD_URL=http://nextcloud_app
+      - JWT_SECRET_KEY=${WHITEBOARD_JWT_SECRET}
+    networks:
+      - nextcloud_proxy
       - nextcloud
 
   nextcloud_elasticsearch:
     image: nextcloud/aio-fulltextsearch:latest
     container_name: nextcloud_elasticsearch
     restart: unless-stopped
+    profiles: [fulltextsearch]
     environment:
       - discovery.type=single-node
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -106,6 +134,7 @@ services:
     image: clamav/clamav:stable_base
     container_name: nextcloud_clamav
     restart: unless-stopped
+    profiles: [clamav]
     volumes:
       - ${CLAMAV_DB_VOLUME}:/var/lib/clamav
     networks:
@@ -129,15 +158,15 @@ services:
       - 8780:8780
       - 8782:8782
     networks:
-      - proxy
+      - nextcloud
       - exapps
 
 networks:
   nextcloud:
     name: nextcloud_network
     driver: bridge
-  proxy:
-    name: proxy_network
+  nextcloud_proxy:
+    name: nextcloud_proxy_network
     external: true
   exapps:
     name: exapps_network
