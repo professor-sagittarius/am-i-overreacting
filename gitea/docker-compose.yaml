@@ -18,7 +18,7 @@ services:
       - ${GITEA_DATA_VOLUME}:/data
     networks:
       - gitea
-      - proxy
+      - gitea_proxy
 
   gitea_postgres:
     image: postgres:17-alpine
@@ -37,6 +37,6 @@ networks:
   gitea:
     name: gitea_network
     driver: bridge
-  proxy:
-    name: proxy_network
+  gitea_proxy:
+    name: gitea_proxy_network
     external: true
