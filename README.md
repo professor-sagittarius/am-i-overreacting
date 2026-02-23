@@ -248,7 +248,7 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 
 ## Notes
 
-- **Switching domains** (e.g., between staging and production): Update the following:
+- **Switching Nextcloud domains** (e.g., between staging and production): Update the following:
   1. Update `overwrite.cli.url` to the new primary domain:
      ```bash
      docker exec -u www-data nextcloud_app php occ config:system:set overwrite.cli.url --value="https://newdomain.example.com"
