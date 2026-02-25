@@ -3,10 +3,10 @@ repositories:
     label: borgbase
 
 source_directories:
-  - /mnt/nextcloud-app
-  - /mnt/nextcloud-data
-  - /mnt/gitea-data
-  - /mnt/vaultwarden-data
+  - /mnt/nextcloud-app    # backup/docker-compose.yaml: NEXTCLOUD_APP_VOLUME
+  - /mnt/nextcloud-data   # backup/docker-compose.yaml: NEXTCLOUD_DATA_VOLUME
+  - /mnt/gitea-data       # backup/docker-compose.yaml: GITEA_DATA_VOLUME
+  - /mnt/vaultwarden-data # backup/docker-compose.yaml: VAULTWARDEN_DATA_VOLUME
 
 postgresql_databases:
   - name: "${NEXTCLOUD_DB}"

@@ -25,7 +25,7 @@ php occ background:cron
 
 # Install apps from NEXTCLOUD_APPS
 for app in ${NEXTCLOUD_APPS}; do
-  php occ app:install "$app"
+  php occ app:install "$app" || echo "Warning: failed to install ${app}"
 done
 
 # Configure Talk STUN/TURN servers (spreed)
@@ -58,6 +58,7 @@ fi
 # Configure Imaginary for server-side preview generation
 if profile_enabled "imaginary"; then
   php occ config:system:set preview_imaginary_url --value="http://nextcloud_imaginary:9000"
+  php occ config:system:delete enabledPreviewProviders
   php occ config:system:set enabledPreviewProviders 0 --value="OC\\Preview\\Imaginary"
   php occ config:system:set enabledPreviewProviders 1 --value="OC\\Preview\\ImaginaryPDF"
   php occ config:system:set enabledPreviewProviders 2 --value="OC\\Preview\\Image"

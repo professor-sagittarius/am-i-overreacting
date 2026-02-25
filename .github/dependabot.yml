@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /reverse-proxy
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /nextcloud
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /gitea
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /vaultwarden
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /uptime-kuma
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /backup
+    schedule:
+      interval: weekly

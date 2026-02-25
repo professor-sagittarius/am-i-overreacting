@@ -1,6 +1,6 @@
 services:
   nextcloud_app:
-    image: nextcloud:${NEXTCLOUD_VERSION:-latest} #check before migrating to ensure both instances are the same version
+    image: nextcloud:33.0.0 # update both app and notify_push to the same version when upgrading
     container_name: nextcloud_app
     restart: unless-stopped
     depends_on:
@@ -55,7 +55,7 @@ services:
       - nextcloud_proxy
 
   nextcloud_postgres: #AIO uses postgres, so this instance should too
-    image: postgres:17-alpine
+    image: postgres:17.8-alpine3.23
     container_name: nextcloud_postgres
     restart: unless-stopped
     environment:
@@ -68,16 +68,16 @@ services:
       - nextcloud
 
   nextcloud_redis:
-    image: redis
+    image: redis:8.6.1-alpine3.23
     container_name: nextcloud_redis
     restart: unless-stopped
     networks:
       - nextcloud
 
   nextcloud_notify_push:
-    image: nextcloud:${NEXTCLOUD_VERSION:-latest}
+    image: nextcloud:33.0.0
     container_name: nextcloud_notify_push
-    entrypoint: ["/bin/sh", "-c", "until [ -f /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push ]; do sleep 10; done && until curl -sf -o /dev/null http://nextcloud_app/status.php; do sleep 10; done && exec /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php"]
+    entrypoint: ["/bin/sh", "-c", "n=0; until [ -f /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push ] || [ $$n -ge 60 ]; do sleep 10; n=$$((n+1)); done; [ -f /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push ] || { echo 'notify_push binary not found after 10 minutes - is notify_push in NEXTCLOUD_APPS?'; exit 1; }; until curl -sf -o /dev/null http://nextcloud_app/status.php; do sleep 10; done; exec /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php"]
     restart: unless-stopped
     depends_on:
       - nextcloud_app
@@ -92,7 +92,7 @@ services:
       - nextcloud
 
   nextcloud_imaginary:
-    image: nextcloud/aio-imaginary:latest
+    image: nextcloud/aio-imaginary:20260218_123804
     container_name: nextcloud_imaginary
     restart: unless-stopped
     profiles: [imaginary]
@@ -104,7 +104,7 @@ services:
       - nextcloud
 
   nextcloud_whiteboard:
-    image: ghcr.io/nextcloud-releases/whiteboard:stable
+    image: ghcr.io/nextcloud-releases/whiteboard:1.5.6
     container_name: nextcloud_whiteboard
     restart: unless-stopped
     profiles: [whiteboard]
@@ -116,7 +116,7 @@ services:
       - nextcloud
 
   nextcloud_elasticsearch:
-    image: nextcloud/aio-fulltextsearch:latest
+    image: nextcloud/aio-fulltextsearch:20260218_123804
     container_name: nextcloud_elasticsearch
     restart: unless-stopped
     profiles: [fulltextsearch]
@@ -131,7 +131,7 @@ services:
       - nextcloud
 
   nextcloud_clamav:
-    image: clamav/clamav:stable_base
+    image: clamav/clamav:1.5.1-27_base
     container_name: nextcloud_clamav
     restart: unless-stopped
     profiles: [clamav]
@@ -141,7 +141,7 @@ services:
       - nextcloud
 
   nextcloud_harp:
-    image: ghcr.io/nextcloud/nextcloud-appapi-harp:release
+    image: ghcr.io/nextcloud/nextcloud-appapi-harp:0.3.2
     container_name: nextcloud_harp
     hostname: appapi-harp
     restart: unless-stopped

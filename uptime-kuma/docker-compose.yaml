@@ -1,6 +1,6 @@
 services:
   uptime_kuma:
-    image: louislam/uptime-kuma:1
+    image: louislam/uptime-kuma:1.23.14
     container_name: uptime_kuma
     restart: unless-stopped
     volumes:

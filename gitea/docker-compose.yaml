@@ -1,6 +1,6 @@
 services:
   gitea_app:
-    image: gitea/gitea:${GITEA_VERSION:-latest}
+    image: gitea/gitea:1.25.4
     container_name: gitea_app
     restart: unless-stopped
     depends_on:
@@ -21,7 +21,7 @@ services:
       - gitea_proxy
 
   gitea_postgres:
-    image: postgres:17-alpine
+    image: postgres:17.8-alpine3.23
     container_name: gitea_postgres
     restart: unless-stopped
     environment:

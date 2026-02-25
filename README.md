@@ -170,6 +170,8 @@ sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/post-installation.sh
 
 ### 8. Start the Nextcloud and Gitea stacks
 
+> **Note:** The HaRP container mounts `/var/run/docker.sock` to manage ExApp containers, giving it full Docker daemon access. Treat it as a high-trust component and ensure the host is otherwise secured.
+
 ```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
 docker compose -f gitea/docker-compose.yaml up -d
@@ -245,6 +247,8 @@ Backups run daily at 2am, retaining 7 daily, 4 weekly, and 3 monthly snapshots.
 | 2222 | Gitea SSH | Git over SSH |
 
 External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/443 exposed.
+
+> **Gitea SSH:** Git over SSH is available on port 2222. Clone with `git clone ssh://git@<server-ip>:2222/<user>/<repo>.git`. This port does not go through Cloudflare Tunnel - ensure it is reachable directly from your clients.
 
 ## Notes
 

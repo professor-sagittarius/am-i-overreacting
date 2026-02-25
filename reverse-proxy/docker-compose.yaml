@@ -1,6 +1,6 @@
 services:
   nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
+    image: jc21/nginx-proxy-manager:2.14.0
     container_name: nginx-proxy-manager
     restart: unless-stopped
     ports:
@@ -19,7 +19,7 @@ services:
       - uptime_kuma_proxy
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.2.0
     container_name: cloudflared
     command: tunnel run
     restart: unless-stopped
