@@ -75,23 +75,7 @@ If the file already exists (`cp` prints an error and nothing is overwritten), me
 
 This limits every container to 10MB x 3 log files (30MB max per container). This is especially important because HaRP-spawned ExApp containers are not managed by docker-compose and would otherwise have no log limits.
 
-### 2. Create Docker networks
-
-```bash
-docker network create nextcloud_proxy_network
-docker network create gitea_proxy_network
-docker network create vaultwarden_proxy_network
-docker network create uptime_kuma_proxy_network
-```
-
-The `tunnel_network` (used between cloudflared and NPM) is managed by the reverse-proxy stack and created automatically.
-
-### 3. Create a Cloudflare Tunnel
-
-1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors**
-2. Create a new tunnel and copy the tunnel token
-
-### 4. Configure environment files
+### 2. Configure environment files
 
 Copy the example environment files and edit the `.env` files with your values:
 
@@ -106,9 +90,9 @@ chmod 600 reverse-proxy/.env nextcloud/.env gitea/.env vaultwarden/.env uptime-k
 bash generate-passwords.sh
 ```
 
-The `generate-passwords.sh` script replaces all `=changeme` default passwords with secure random values. Copy these somewhere safe - store them in Vaultwarden once it is set up (step 13), or in another secure location in the meantime.
+The `generate-passwords.sh` script creates `nextcloud/secrets/`, `gitea/secrets/`, and `backup/secrets/` directories with generated credentials (mode 600), and replaces all `=changeme` default passwords in `.env` files with secure random values. The Nextcloud admin password is stored in `nextcloud/secrets/admin_password`.
 
-> **backup/.env**: `generate-passwords.sh` sets `BORG_PASSPHRASE` and automatically copies DB credentials and volume paths from the other stacks into `backup/.env` - no manual copying needed. Store `BORG_PASSPHRASE` in Vaultwarden or another secure location - loss means backups are irrecoverable.
+> **backup/.env**: `generate-passwords.sh` automatically copies DB credentials and volume paths from the other stacks into `backup/.env` - no manual copying needed. The Borg passphrase is generated in `backup/secrets/borg_passphrase` - store this securely in Vaultwarden once it is set up (step 13), or in another secure location in the meantime. Loss means backups are irrecoverable.
 
 **reverse-proxy/.env**
 - `CLOUDFLARE_TUNNEL_TOKEN` - Tunnel token from the previous step
@@ -116,7 +100,9 @@ The `generate-passwords.sh` script replaces all `=changeme` default passwords wi
 
 **nextcloud/.env**
 - `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com nextcloud_app`)
-- `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` - Admin credentials
+- `NEXTCLOUD_ADMIN_USER` - Admin username (password is in `nextcloud/secrets/admin_password`)
+- `NEXTCLOUD_PROXY_NETWORK_SUBNET` - Subnet for the nextcloud_proxy_network (default: 172.28.0.0/24)
+- `NEXTCLOUD_INTERNAL_NETWORK_SUBNET` - Subnet for nextcloud_network internal bridge (default: 172.29.0.0/24)
 - `COMPOSE_PROFILES` - Comma-separated list of optional service profiles (`imaginary,whiteboard,clamav,fulltextsearch`)
 - `WHITEBOARD_PUBLIC_URL` - Public URL for the whiteboard WebSocket server (needed if `whiteboard` profile is enabled)
 - `HP_SHARED_KEY` - HaRP shared key (set by `generate-passwords.sh`, also needed in Step 12)
@@ -128,9 +114,28 @@ The `generate-passwords.sh` script replaces all `=changeme` default passwords wi
 
 **backup/.env**
 - `BORGBASE_REPO` - Borgbase SSH repository URL (e.g., `ssh://user@xxx.repo.borgbase.com/./repo`)
-- `BORG_PASSPHRASE` - Encryption passphrase (set by `generate-passwords.sh`); store in Vaultwarden or another secure location separately from the backup destination - loss means backups are irrecoverable
+- Borg passphrase - Generated in `backup/secrets/borg_passphrase` by `generate-passwords.sh`; store in Vaultwarden or another secure location separately from the backup destination - loss means backups are irrecoverable
 - `SSH_KEY_PATH` - Path to the Borgbase SSH private key on the host (default: `/root/.ssh/borgbase_ed25519`)
 - Nextcloud, Gitea, and Vaultwarden volume paths and DB credentials - populated automatically by `generate-passwords.sh`
+
+### 3. Create a Cloudflare Tunnel
+
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks → Connectors**
+2. Create a new tunnel and copy the tunnel token
+
+### 4. Create Docker networks
+
+```bash
+source nextcloud/.env
+docker network create --subnet=${NEXTCLOUD_PROXY_NETWORK_SUBNET} nextcloud_proxy_network
+docker network create gitea_proxy_network
+docker network create vaultwarden_proxy_network
+docker network create uptime_kuma_proxy_network
+```
+
+The Nextcloud proxy network uses a fixed subnet so `TRUSTED_PROXIES` can be scoped to only NPM. The subnet is `NEXTCLOUD_PROXY_NETWORK_SUBNET` in `nextcloud/.env`.
+
+The `tunnel_network` (used between cloudflared and NPM) is managed by the reverse-proxy stack and created automatically.
 
 ### 5. Start the reverse-proxy stack
 
@@ -276,5 +281,7 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 
 - **Security notes**:
   - Disable the Vaultwarden admin panel after initial setup (`VAULTWARDEN_ADMIN_TOKEN=`)
-  - Redis and Elasticsearch have no authentication - they are on the internal `nextcloud_network` only and not reachable from outside
-  - The `BORG_PASSPHRASE` should be stored in Vaultwarden or another secure location separately from the backup destination - if lost, encrypted backups cannot be recovered
+  - Database credentials and the Nextcloud admin password are loaded from secret files at container startup and do not appear in `docker inspect` output. Secret files are in `nextcloud/secrets/`, `gitea/secrets/`, and `backup/secrets/` (mode 600, gitignored)
+  - Elasticsearch has no authentication - it is on the internal `nextcloud_network` only and not reachable from outside
+  - The Borg passphrase in `backup/secrets/borg_passphrase` should be stored in Vaultwarden or another secure location separately from the backup destination - if lost, encrypted backups cannot be recovered
+  - Nightly backups are triggered by `backup/backup.sh` on the host (not by an internal cron in the borgmatic container). The script enables Nextcloud maintenance mode before backup and disables it after - even on failure - via a `trap EXIT` handler. To set up: `chmod +x backup/backup.sh`. Run as root (or a user in the `docker` group), then add a host cron entry: `0 2 * * * /absolute/path/to/backup/backup.sh >> /var/log/borgmatic.log 2>&1`. Set up logrotate for `/var/log/borgmatic.log` to prevent unbounded growth

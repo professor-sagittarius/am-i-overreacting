@@ -12,11 +12,9 @@ postgresql_databases:
   - name: "${NEXTCLOUD_DB}"
     hostname: nextcloud_postgres
     username: "${NEXTCLOUD_DB_USER}"
-    password: "${NEXTCLOUD_DB_PASSWORD}"
   - name: "${GITEA_DB}"
     hostname: gitea_postgres
     username: "${GITEA_DB_USER}"
-    password: "${GITEA_DB_PASSWORD}"
 
 encryption_passphrase: "${BORG_PASSPHRASE}"
 
