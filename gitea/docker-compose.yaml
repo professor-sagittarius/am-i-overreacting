@@ -4,10 +4,11 @@ services:
     container_name: gitea_app
     restart: unless-stopped
     depends_on:
-      - gitea_postgres
+      gitea_postgres:
+        condition: service_healthy
     ports:
-      - 3000:3000 #so the instance can be accessed without the use of cloudflare tunnel in the LAN
-      - 2222:22
+      - "${HOST_LAN_IP}:${GITEA_HTTP_PORT:-3000}:3000"
+      - "${GITEA_SSH_PORT:-2222}:22"
     environment:
       - GITEA__database__DB_TYPE=postgres
       - GITEA__database__HOST=gitea_postgres:5432
@@ -20,6 +21,12 @@ services:
     networks:
       - gitea
       - gitea_proxy
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${GITEA_APP_MEMORY_LIMIT:-512m}
 
   gitea_postgres:
     image: postgres:17.8-alpine3.23
@@ -34,6 +41,18 @@ services:
       - ./secrets/postgres_password:/run/secrets/postgres_password:ro
     networks:
       - gitea
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${GITEA_POSTGRES_MEMORY_LIMIT:-1g}
 
 networks:
   gitea:

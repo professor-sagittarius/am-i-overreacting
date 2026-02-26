@@ -4,7 +4,7 @@ services:
     container_name: nginx-proxy-manager
     restart: unless-stopped
     ports:
-      - "81:81" # Admin panel - LAN access only
+      - "${HOST_LAN_IP}:81:81" # Admin panel - LAN access only
     environment:
       - DISABLE_IPV6=true # Set to false if IPv6 is enabled on your host
     volumes:
@@ -16,6 +16,12 @@ services:
       - gitea_proxy
       - vaultwarden_proxy
       - uptime_kuma_proxy
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NPM_MEMORY_LIMIT:-256m}
 
   cloudflared:
     image: cloudflare/cloudflared:2026.2.0
@@ -26,6 +32,12 @@ services:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - tunnel
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${CLOUDFLARED_MEMORY_LIMIT:-128m}
 
 networks:
   tunnel:

@@ -1,4 +1,2 @@
 .env
-nextcloud/secrets/
-gitea/secrets/
-backup/secrets/
+**/secrets/

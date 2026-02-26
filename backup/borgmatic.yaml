@@ -6,7 +6,9 @@ source_directories:
   - /mnt/nextcloud-app    # backup/docker-compose.yaml: NEXTCLOUD_APP_VOLUME
   - /mnt/nextcloud-data   # backup/docker-compose.yaml: NEXTCLOUD_DATA_VOLUME
   - /mnt/gitea-data       # backup/docker-compose.yaml: GITEA_DATA_VOLUME
-  - /mnt/vaultwarden-data # backup/docker-compose.yaml: VAULTWARDEN_DATA_VOLUME
+  - /mnt/vaultwarden-data/db-backup.sqlite3
+  - /mnt/vaultwarden-data/attachments
+  - /mnt/vaultwarden-data/sends
 
 postgresql_databases:
   - name: "${NEXTCLOUD_DB}"
@@ -22,3 +24,16 @@ retention:
   keep_daily: 7
   keep_weekly: 4
   keep_monthly: 3
+
+hooks:
+    before_backup:
+        - echo "Creating Vaultwarden SQLite hot backup..."
+        - sqlite3 /mnt/vaultwarden-data/db.sqlite3 ".backup /mnt/vaultwarden-data/db-backup.sqlite3"
+
+    after_backup:
+        - rm -f /mnt/vaultwarden-data/db-backup.sqlite3
+
+    on_error:
+        - echo "Borgmatic backup FAILED at $(date)" | logger -t borgmatic-error
+        # Uncomment and set HEALTHCHECK_PING_URL in backup/.env to enable push failure alerts:
+        # - curl -fsS --retry 3 "${HEALTHCHECK_PING_URL}/fail" > /dev/null 2>&1 || true

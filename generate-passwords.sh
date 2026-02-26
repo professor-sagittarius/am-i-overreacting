@@ -2,6 +2,8 @@
 # Replaces all 'changeme' default passwords in .env files with secure random passwords.
 # Also copies cross-stack values into backup/.env.
 
+command -v openssl >/dev/null 2>&1 || { echo "Error: openssl is required but not installed."; exit 1; }
+
 # Update this list when adding a new stack
 ENV_FILES="nextcloud/.env gitea/.env vaultwarden/.env backup/.env"
 REPLACED=0
@@ -9,8 +11,7 @@ REPLACED=0
 # Create secrets directories and generate secret files (only if they don't already exist)
 # Use umask 077 subshells so files are created with mode 600 from the start,
 # not created insecure and then chmod'd
-mkdir -p nextcloud/secrets gitea/secrets backup/secrets
-chmod 700 nextcloud/secrets gitea/secrets backup/secrets
+install -d -m 700 nextcloud/secrets gitea/secrets backup/secrets vaultwarden/secrets
 
 SECRETS=(
   "nextcloud/secrets/postgres_password"
@@ -18,6 +19,7 @@ SECRETS=(
   "nextcloud/secrets/redis_password"
   "gitea/secrets/postgres_password"
   "backup/secrets/borg_passphrase"
+  "vaultwarden/secrets/admin_token"
 )
 for secret in "${SECRETS[@]}"; do
   if [ ! -f "${secret}" ]; then
@@ -61,7 +63,7 @@ COPIED=0
 copy_to_backup() {
   local src_file="$1" src_var="$2" dest_var="$3"
   local value
-  value=$(bash -c "set -a; source '${src_file}'; echo \"\${${src_var}}\"" 2>/dev/null)
+  value=$(grep -m1 "^${src_var}=" "${src_file}" 2>/dev/null | cut -d'=' -f2- || true)
   if [ -n "${value}" ]; then
     if grep -q "^${dest_var}=" backup/.env; then
       sed -i "s|^${dest_var}=.*|${dest_var}=${value}|" backup/.env
@@ -102,4 +104,57 @@ fi
 if [ "${COPIED}" -gt 0 ]; then
   echo ""
   echo "Copied ${COPIED} cross-stack value(s) into backup/.env."
+fi
+
+# Auto-calculate proportional resource limits from host RAM (only if not already set)
+if command -v free >/dev/null 2>&1; then
+  TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
+
+  # Returns the larger of (TOTAL_MB * numerator / denominator) and floor_mb, formatted as Xg or Xm
+  calc_mem() {
+    local num="$1" den="$2" floor_mb="$3"
+    local val=$(( TOTAL_MB * num / den ))
+    [ "$val" -lt "$floor_mb" ] && val="$floor_mb"
+    if [ $(( val % 1024 )) -eq 0 ] && [ "$val" -ge 1024 ]; then
+      echo "$((val / 1024))g"
+    else
+      echo "${val}m"
+    fi
+  }
+
+  # Write limit to .env file only if key is absent or empty
+  set_if_absent() {
+    local env_file="$1" key="$2" value="$3"
+    [ -f "$env_file" ] || return
+    if ! grep -q "^${key}=" "$env_file"; then
+      echo "${key}=${value}" >> "$env_file"
+    fi
+  }
+
+  # nextcloud limits
+  set_if_absent nextcloud/.env NEXTCLOUD_APP_MEMORY_LIMIT          "$(calc_mem 1 4  2048)"
+  set_if_absent nextcloud/.env NEXTCLOUD_POSTGRES_MEMORY_LIMIT     "$(calc_mem 3 25 1024)"
+  set_if_absent nextcloud/.env NEXTCLOUD_REDIS_MEMORY_LIMIT        "$(calc_mem 3 100 256)"
+  set_if_absent nextcloud/.env NEXTCLOUD_ELASTICSEARCH_MEMORY_LIMIT "$(calc_mem 3 25 1024)"
+  set_if_absent nextcloud/.env NEXTCLOUD_CLAMAV_MEMORY_LIMIT       "$(calc_mem 1 5  3072)"
+  set_if_absent nextcloud/.env NEXTCLOUD_IMAGINARY_MEMORY_LIMIT    "$(calc_mem 3 50  512)"
+  set_if_absent nextcloud/.env NEXTCLOUD_WHITEBOARD_MEMORY_LIMIT   "$(calc_mem 3 100 256)"
+  set_if_absent nextcloud/.env NEXTCLOUD_HARP_MEMORY_LIMIT         "$(calc_mem 3 50  512)"
+  set_if_absent nextcloud/.env NEXTCLOUD_NOTIFY_PUSH_MEMORY_LIMIT  "$(calc_mem 1 50  256)"
+
+  # gitea limits
+  set_if_absent gitea/.env GITEA_APP_MEMORY_LIMIT      "$(calc_mem 3 50  512)"
+  set_if_absent gitea/.env GITEA_POSTGRES_MEMORY_LIMIT "$(calc_mem 3 25 1024)"
+
+  # vaultwarden limits
+  set_if_absent vaultwarden/.env VAULTWARDEN_MEMORY_LIMIT "$(calc_mem 3 100 256)"
+
+  # backup limits
+  set_if_absent backup/.env BORGMATIC_MEMORY_LIMIT "$(calc_mem 3 50 512)"
+
+  # reverse-proxy limits
+  set_if_absent reverse-proxy/.env NPM_MEMORY_LIMIT         "$(calc_mem 3 100 256)"
+  set_if_absent reverse-proxy/.env CLOUDFLARED_MEMORY_LIMIT "$(calc_mem 1 100 128)"
+
+  echo "Resource limits written based on ${TOTAL_MB}MB total host RAM."
 fi

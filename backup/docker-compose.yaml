@@ -1,4 +1,6 @@
 services:
+  # This is a one-shot container: it runs borgmatic, completes the backup, and exits.
+  # It is invoked by backup.sh rather than running continuously.
   borgmatic:
     image: ghcr.io/borgmatic-collective/borgmatic:2.1.2
     container_name: borgmatic
@@ -15,7 +17,7 @@ services:
       - ${NEXTCLOUD_APP_VOLUME}:/mnt/nextcloud-app:ro
       - ${NEXTCLOUD_DATA_VOLUME}:/mnt/nextcloud-data:ro
       - ${GITEA_DATA_VOLUME}:/mnt/gitea-data:ro
-      - ${VAULTWARDEN_DATA_VOLUME}:/mnt/vaultwarden-data:ro
+      - ${VAULTWARDEN_DATA_VOLUME}:/mnt/vaultwarden-data
       - ${BORGMATIC_STATE_VOLUME}:/root/.borgmatic
       - ${BORG_CACHE_VOLUME}:/root/.cache/borg
       - ./secrets/pgpass:/root/.pgpass:ro
@@ -23,6 +25,12 @@ services:
     networks:
       - nextcloud
       - gitea
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${BORGMATIC_MEMORY_LIMIT:-512m}
 
 networks:
   nextcloud:
