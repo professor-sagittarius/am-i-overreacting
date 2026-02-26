@@ -1,5 +1,6 @@
 #!/bin/bash
 # Post-installation hook - runs after Nextcloud is installed
+set -euo pipefail
 
 # Helper: check if a profile is enabled in COMPOSE_PROFILES
 profile_enabled() { echo ",${COMPOSE_PROFILES:-}," | grep -q ",$1,"; }
@@ -14,19 +15,26 @@ if [ -n "${MAINTENANCE_WINDOW_START}" ]; then
   php occ config:system:set maintenance_window_start --type=integer --value="${MAINTENANCE_WINDOW_START}"
 fi
 
-# Set CLI URL to first trusted domain (used for self-checks including HSTS validation)
-if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS}" ] && ! echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | grep -q "yourdomain.com"; then
-  PRIMARY_DOMAIN=$(echo "${NEXTCLOUD_TRUSTED_DOMAINS}" | awk '{print $1}')
-  php occ config:system:set overwrite.cli.url --value="https://${PRIMARY_DOMAIN}"
+# Set CLI URL to primary domain (used for self-checks including HSTS validation)
+if [ -n "${NEXTCLOUD_PRIMARY_DOMAIN}" ] && ! echo "${NEXTCLOUD_PRIMARY_DOMAIN}" | grep -q "yourdomain.com"; then
+  php occ config:system:set overwrite.cli.url --value="https://${NEXTCLOUD_PRIMARY_DOMAIN}"
 fi
 
 # Use system cron for background jobs
 php occ background:cron
 
 # Install apps from NEXTCLOUD_APPS
+FAILED_APPS=()
 for app in ${NEXTCLOUD_APPS}; do
-  php occ app:install "$app" || echo "Warning: failed to install ${app}"
+  if ! php occ app:install "$app" 2>&1; then
+    FAILED_APPS+=("$app")
+    echo "Warning: failed to install ${app}"
+  fi
 done
+if [ "${#FAILED_APPS[@]}" -gt 0 ]; then
+  echo "ERROR: Failed to install apps: ${FAILED_APPS[*]}" >&2
+  exit 1
+fi
 
 # Configure Talk STUN/TURN servers (spreed)
 if [ -n "${TALK_TURN_SECRET}" ]; then
@@ -92,11 +100,14 @@ if profile_enabled "clamav"; then
   php occ config:app:set files_antivirus av_port --value="3310"
   php occ config:app:set files_antivirus av_stream_max_length --value="26214400"
   php occ config:app:set files_antivirus av_max_file_size --value="-1"
+  # av_infected_action is "only_log": infected files are flagged in logs but not deleted.
+  # This avoids disruption from ClamAV false positives. To auto-delete infected files,
+  # change to "delete". Monitor Nextcloud logs for antivirus alerts.
   php occ config:app:set files_antivirus av_infected_action --value="only_log"
 fi
 
-# Register AppAPI deploy daemon (HaRP)
-if [ -n "${HP_SHARED_KEY}" ]; then
+# Register AppAPI deploy daemon (HaRP) — only if harp profile is enabled
+if profile_enabled "harp" && [ -n "${HP_SHARED_KEY}" ]; then
   php occ app_api:daemon:register harp_proxy_docker "Harp Proxy (Docker)" "docker-install" "http" "nextcloud_harp:8780" "http://nextcloud_app" --net exapps_network --harp --harp_frp_address "nextcloud_harp:8782" --harp_shared_key "${HP_SHARED_KEY}" --set-default
 fi
 

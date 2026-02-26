@@ -4,8 +4,10 @@ services:
     container_name: nextcloud_app
     restart: unless-stopped
     depends_on:
-      - nextcloud_postgres
-      - nextcloud_redis
+      nextcloud_postgres:
+        condition: service_healthy
+      nextcloud_redis:
+        condition: service_healthy
     ports:
       - ${NEXTCLOUD_LAN_PORT:-8888}:80 #so the instance can be accessed without the use of cloudflare tunnel in the LAN
     environment:
@@ -16,12 +18,12 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_HOST_PASSWORD_FILE=/run/secrets/redis_password
       - OVERWRITEPROTOCOL=https
-      - TRUSTED_PROXIES=${NEXTCLOUD_PROXY_NETWORK_SUBNET:-172.28.0.0/24} # Subnet of nextcloud_proxy_network - set NEXTCLOUD_PROXY_NETWORK_SUBNET in nextcloud/.env to change
+      - TRUSTED_PROXIES=${NEXTCLOUD_PROXY_NETWORK_SUBNET:-172.28.0.0/24} # Subnet of nextcloud_proxy_network
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/admin_password
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
+      - NEXTCLOUD_PRIMARY_DOMAIN=${NEXTCLOUD_PRIMARY_DOMAIN}
       - NEXTCLOUD_DATA_DIR=${NEXTCLOUD_DATA_DIR}
-      - NEXTCLOUD_LAN_IP=${NEXTCLOUD_LAN_IP}
       - NEXTCLOUD_LAN_PORT=${NEXTCLOUD_LAN_PORT}
       - DEFAULT_PHONE_REGION=${DEFAULT_PHONE_REGION}
       - MAINTENANCE_WINDOW_START=${MAINTENANCE_WINDOW_START}
@@ -58,6 +60,20 @@ services:
     networks:
       - nextcloud
       - nextcloud_proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_APP_MEMORY_LIMIT:-4g}
+        reservations:
+          memory: ${NEXTCLOUD_APP_MEMORY_RESERVATION:-64m}
 
   nextcloud_postgres: #AIO uses postgres, so this instance should too
     image: postgres:17.8-alpine3.23
@@ -72,33 +88,71 @@ services:
       - ./secrets/postgres_password:/run/secrets/postgres_password:ro
     networks:
       - nextcloud
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_POSTGRES_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: ${NEXTCLOUD_POSTGRES_MEMORY_RESERVATION:-64m}
 
   nextcloud_redis:
     image: redis:8.6.1-alpine3.23
     container_name: nextcloud_redis
     restart: unless-stopped
-    command: ["sh", "-c", "redis-server --requirepass $$(cat /run/secrets/redis_password)"]
+    command: ["sh", "-c", "redis-server --requirepass $$(cat /run/secrets/redis_password) --save 60 1000 --appendonly yes"]
     volumes:
       - ./secrets/redis_password:/run/secrets/redis_password:ro
+      - ${NEXTCLOUD_REDIS_VOLUME}:/data
     networks:
       - nextcloud
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep -q PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_REDIS_MEMORY_LIMIT:-256m}
+        reservations:
+          memory: ${NEXTCLOUD_REDIS_MEMORY_RESERVATION:-64m}
 
   nextcloud_notify_push:
     image: nextcloud:33.0.0
     container_name: nextcloud_notify_push
-    entrypoint: ["/bin/sh", "-c", "n=0; until [ -f /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push ] || [ $$n -ge 60 ]; do sleep 10; n=$$((n+1)); done; [ -f /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push ] || { echo 'notify_push binary not found after 10 minutes - is notify_push in NEXTCLOUD_APPS?'; exit 1; }; until curl -sf -o /dev/null http://nextcloud_app/status.php; do sleep 10; done; exec /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php"]
+    entrypoint: ["/scripts/notify_push_entrypoint.sh"]
     restart: unless-stopped
     depends_on:
-      - nextcloud_app
+      nextcloud_app:
+        condition: service_healthy
     environment:
       - PORT=7867
       - NEXTCLOUD_URL=http://nextcloud_app
     volumes:
       - ${NEXTCLOUD_APP_VOLUME}/custom_apps:/var/www/html/custom_apps:ro
       - ${NEXTCLOUD_APP_VOLUME}/config:/var/www/html/config:ro
+      - ./scripts/notify_push_entrypoint.sh:/scripts/notify_push_entrypoint.sh:ro
     networks:
       - nextcloud_proxy
       - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_NOTIFY_PUSH_MEMORY_LIMIT:-256m}
+        reservations:
+          memory: ${NEXTCLOUD_NOTIFY_PUSH_MEMORY_RESERVATION:-64m}
 
   nextcloud_imaginary:
     image: nextcloud/aio-imaginary:20260218_123804
@@ -111,6 +165,14 @@ services:
       - PORT=9000
     networks:
       - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_IMAGINARY_MEMORY_LIMIT:-512m}
+        reservations:
+          memory: ${NEXTCLOUD_IMAGINARY_MEMORY_RESERVATION:-64m}
 
   nextcloud_whiteboard:
     image: ghcr.io/nextcloud-releases/whiteboard:1.5.6
@@ -123,6 +185,14 @@ services:
     networks:
       - nextcloud_proxy
       - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_WHITEBOARD_MEMORY_LIMIT:-256m}
+        reservations:
+          memory: ${NEXTCLOUD_WHITEBOARD_MEMORY_RESERVATION:-64m}
 
   nextcloud_elasticsearch:
     image: nextcloud/aio-fulltextsearch:20260218_123804
@@ -131,13 +201,21 @@ services:
     profiles: [fulltextsearch]
     environment:
       - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-512m} -Xmx${ES_HEAP_SIZE:-512m}"
       - xpack.security.enabled=false
       - TZ=${TIMEZONE}
     volumes:
       - ${ELASTICSEARCH_DATA_VOLUME}:/usr/share/elasticsearch/data
     networks:
       - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_ELASTICSEARCH_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: ${NEXTCLOUD_ELASTICSEARCH_MEMORY_RESERVATION:-64m}
 
   nextcloud_clamav:
     image: clamav/clamav:1.5.1-27_base
@@ -148,12 +226,21 @@ services:
       - ${CLAMAV_DB_VOLUME}:/var/lib/clamav
     networks:
       - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_CLAMAV_MEMORY_LIMIT:-3g}
+        reservations:
+          memory: ${NEXTCLOUD_CLAMAV_MEMORY_RESERVATION:-64m}
 
   nextcloud_harp:
     image: ghcr.io/nextcloud/nextcloud-appapi-harp:0.3.2
     container_name: nextcloud_harp
     hostname: appapi-harp
     restart: unless-stopped
+    profiles: [harp]
     depends_on:
       - nextcloud_app
     environment:
@@ -164,11 +251,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HARP_CERTS_VOLUME}:/certs
     ports:
-      - 8780:8780
-      - 8782:8782
+      - ${HOST_LAN_IP}:8780:8780
+      - ${HOST_LAN_IP}:8782:8782
     networks:
       - nextcloud
       - exapps
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${NEXTCLOUD_HARP_MEMORY_LIMIT:-512m}
+        reservations:
+          memory: ${NEXTCLOUD_HARP_MEMORY_RESERVATION:-64m}
 
 networks:
   nextcloud:
@@ -176,7 +271,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: ${NEXTCLOUD_INTERNAL_NETWORK_SUBNET:-172.29.0.0/24} # Fixed subnet used by HP_TRUSTED_PROXY_IPS - set NEXTCLOUD_INTERNAL_NETWORK_SUBNET in nextcloud/.env to change
+        - subnet: ${NEXTCLOUD_INTERNAL_NETWORK_SUBNET:-172.29.0.0/24} # Fixed subnet used by HP_TRUSTED_PROXY_IPS
   nextcloud_proxy:
     name: nextcloud_proxy_network
     external: true
