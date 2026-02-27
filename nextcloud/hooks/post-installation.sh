@@ -111,8 +111,9 @@ if profile_enabled "harp" && [ -n "${HP_SHARED_KEY}" ]; then
   php occ app_api:daemon:register harp_proxy_docker "Harp Proxy (Docker)" "docker-install" "http" "nextcloud_harp:8780" "http://nextcloud_app" --net exapps_network --harp --harp_frp_address "nextcloud_harp:8782" --harp_shared_key "${HP_SHARED_KEY}" --set-default
 fi
 
-# Add missing database indices
+# Add missing database indices and columns
 php occ db:add-missing-indices
+php occ db:add-missing-columns
 
 # Run maintenance repair
 php occ maintenance:repair --include-expensive

@@ -30,6 +30,18 @@ if [ -n "${NEXTCLOUD_PRIMARY_DOMAIN:-}" ] && \
   php occ config:system:set overwrite.cli.url --value="https://${NEXTCLOUD_PRIMARY_DOMAIN}"
 fi
 
+# Trusted domains - re-applied on every startup so that updating
+# NEXTCLOUD_TRUSTED_DOMAINS in .env and restarting is sufficient to change them.
+# Deletes first to remove any stale entries left over from a previous larger list.
+if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS:-}" ]; then
+  php occ config:system:delete trusted_domains 2>/dev/null || true
+  i=0
+  for domain in ${NEXTCLOUD_TRUSTED_DOMAINS}; do
+    php occ config:system:set trusted_domains $i --value="$domain"
+    i=$((i + 1))
+  done
+fi
+
 # ── App management ────────────────────────────────────────────────────────────
 # Install apps that are not yet installed; enable apps that are installed but
 # disabled. Idempotent: enable on an already-enabled app is a no-op.
@@ -141,3 +153,12 @@ if profile_enabled "harp" && [ -n "${HP_SHARED_KEY:-}" ]; then
     --harp_shared_key "${HP_SHARED_KEY}" \
     --set-default 2>/dev/null || true
 fi
+
+# ── Background job scheduler ──────────────────────────────────────────────────
+# Ensures system cron is always configured even after container recreation.
+php occ background:cron
+
+# ── Database integrity ────────────────────────────────────────────────────────
+# Idempotent; catches gaps introduced by Nextcloud upgrades automatically.
+php occ db:add-missing-indices
+php occ db:add-missing-columns

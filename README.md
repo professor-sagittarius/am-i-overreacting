@@ -147,8 +147,8 @@ The `generate-passwords.sh` script creates `nextcloud/secrets/`, `gitea/secrets/
 - `DOCKER_VOLUME_DIR` - Base path for NPM data
 
 **nextcloud/.env**
-- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com nextcloud_app`)
-- `NEXTCLOUD_PRIMARY_DOMAIN` - Primary domain used for `overwrite.cli.url` (must also be in `NEXTCLOUD_TRUSTED_DOMAINS`). **Note:** After initial setup, this value is re-applied on every container startup via `before-startup.sh` - updating it in `.env` and restarting is sufficient to change the primary domain.
+- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com nextcloud_app`). Re-applied on every startup via `before-startup.sh` — updating this in `.env` and restarting is sufficient to add or remove trusted domains.
+- `NEXTCLOUD_PRIMARY_DOMAIN` - Primary domain used for `overwrite.cli.url` (must also be in `NEXTCLOUD_TRUSTED_DOMAINS`). Re-applied on every startup via `before-startup.sh` — updating it in `.env` and restarting is sufficient to change the primary domain.
 - `NEXTCLOUD_ADMIN_USER` - Admin username (password is in `nextcloud/secrets/admin_password`)
 - `NEXTCLOUD_PROXY_NETWORK_SUBNET` - Subnet for the nextcloud_proxy_network (default: 172.28.0.0/24)
 - `NEXTCLOUD_INTERNAL_NETWORK_SUBNET` - Subnet for nextcloud_network internal bridge (default: 172.29.0.0/24)
@@ -437,7 +437,6 @@ Recommended HTTP(S) and TCP monitors in Uptime Kuma:
 ### Expected Growth
 
 - **PostgreSQL WAL (write-ahead log)** can grow over time; tune `max_wal_size` in postgres config if backups lag
-- **Nextcloud storage**: ~5-10 GB/user/year for typical usage
 - Monitor disk space: `df -h`
 - Set up disk space alerts in Uptime Kuma for early warning
 
@@ -537,17 +536,12 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
 
 ## Notes
 
-- **Switching Nextcloud domains** (e.g., between staging and production): Because `NEXTCLOUD_PRIMARY_DOMAIN` is re-applied on every startup via `before-startup.sh`, updating it in `nextcloud/.env` and restarting the stack is sufficient to change `overwrite.cli.url`. For other domain-related settings, also run:
-  1. Re-run notify_push setup with the new domain:
+- **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:
+  1. Re-run notify_push setup with the new domain (cannot be automated — requires the push service to already be running):
      ```bash
      docker exec -u www-data nextcloud_app php occ notify_push:setup https://newdomain.example.com/push
      ```
-  2. If the new domain wasn't included in `NEXTCLOUD_TRUSTED_DOMAINS` during initial setup, add it. Note that each command overwrites a single index, so list all domains you want to keep:
-     ```bash
-     docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 0 --value="newdomain.example.com"
-     docker exec -u www-data nextcloud_app php occ config:system:set trusted_domains 1 --value="192.168.1.100:8888"
-     ```
-  3. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
+  2. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
 
 - **`overwriteprotocol`** is set to `https` so Nextcloud generates HTTPS links through NPM. To temporarily switch to HTTP for LAN troubleshooting:
   ```bash
