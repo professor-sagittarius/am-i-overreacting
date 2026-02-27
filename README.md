@@ -7,19 +7,19 @@ Docker Compose setup for Nextcloud, Gitea, Vaultwarden, and Uptime Kuma via Ngin
 ### Traffic Flow
 
 ```
-Internet → Cloudflare (WAF/DDoS) → cloudflared
-                                         │ tunnel_network
-                                   nginx-proxy-manager ──→ nextcloud_app     (nextcloud_proxy_network)
-                                                       ──→ gitea_app         (gitea_proxy_network)
-                                                       ──→ vaultwarden       (vaultwarden_proxy_network)
-                                                       ──→ uptime_kuma       (uptime_kuma_proxy_network)
+Internet -> Cloudflare (WAF/DDoS) -> cloudflared
+                                          |  tunnel_network
+                                    nginx-proxy-manager --> nextcloud_app     (nextcloud_proxy_network)
+                                                        --> gitea_app         (gitea_proxy_network)
+                                                        --> vaultwarden       (vaultwarden_proxy_network)
+                                                        --> uptime_kuma       (uptime_kuma_proxy_network)
 
 LAN direct (no Cloudflare):
-  HOST_LAN_IP:8888 → nextcloud_app
-  HOST_LAN_IP:8780 → nextcloud_harp (ExApps proxy)
-  HOST_LAN_IP:3000 → gitea_app
-  HOST_LAN_IP:2222 → gitea_app (SSH)
-  HOST_LAN_IP:81   → nginx-proxy-manager (admin)
+  HOST_LAN_IP:8888 -> nextcloud_app
+  HOST_LAN_IP:8780 -> nextcloud_harp (ExApps proxy)
+  HOST_LAN_IP:3000 -> gitea_app
+  HOST_LAN_IP:2222 -> gitea_app (SSH)
+  HOST_LAN_IP:81   -> nginx-proxy-manager (admin)
 ```
 
 ### Networks
