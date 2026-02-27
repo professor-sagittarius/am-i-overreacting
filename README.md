@@ -29,15 +29,15 @@ Each externally-facing stack has its own isolated proxy network. NPM joins all o
 | Network | Purpose | Services |
 |---------|---------|---------|
 | `tunnel_network` | cloudflared ↔ NPM only | cloudflared, nginx-proxy-manager |
-| `nextcloud_proxy_network` | NPM ↔ Nextcloud | nginx-proxy-manager, nextcloud_app, nextcloud_notify_push, nextcloud_whiteboard† |
-| `nextcloud_network` | Nextcloud internal | nextcloud_app, nextcloud_postgres, nextcloud_redis, nextcloud_notify_push, nextcloud_imaginary†, nextcloud_whiteboard†, nextcloud_elasticsearch†, nextcloud_clamav†, nextcloud_harp† |
-| `exapps_network` | HaRP ↔ ExApp containers | nextcloud_harp†, HaRP-managed ExApp containers |
+| `nextcloud_proxy_network` | NPM ↔ Nextcloud | nginx-proxy-manager, nextcloud_app, nextcloud_notify_push, nextcloud_whiteboard* |
+| `nextcloud_network` | Nextcloud internal | nextcloud_app, nextcloud_postgres, nextcloud_redis, nextcloud_notify_push, nextcloud_imaginary*, nextcloud_whiteboard*, nextcloud_elasticsearch*, nextcloud_clamav*, nextcloud_harp* |
+| `exapps_network` | HaRP ↔ ExApp containers | nextcloud_harp*, HaRP-managed ExApp containers |
 | `gitea_proxy_network` | NPM ↔ Gitea | nginx-proxy-manager, gitea_app |
 | `gitea_network` | Gitea internal | gitea_app, gitea_postgres |
 | `vaultwarden_proxy_network` | NPM ↔ Vaultwarden | nginx-proxy-manager, vaultwarden |
 | `uptime_kuma_proxy_network` | NPM ↔ Uptime Kuma | nginx-proxy-manager, uptime_kuma |
 
-† Profile-conditional services (enabled via `COMPOSE_PROFILES` in `nextcloud/.env`)
+* Profile-conditional services (enabled via `COMPOSE_PROFILES` in `nextcloud/.env`)
 
 ## Services
 
