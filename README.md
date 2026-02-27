@@ -37,7 +37,7 @@ Each externally-facing stack has its own isolated proxy network. NPM joins all o
 | `vaultwarden_proxy_network` | NPM ↔ Vaultwarden | nginx-proxy-manager, vaultwarden |
 | `uptime_kuma_proxy_network` | NPM ↔ Uptime Kuma | nginx-proxy-manager, uptime_kuma |
 
-* Profile-conditional services (enabled via `COMPOSE_PROFILES` in `nextcloud/.env`)
+\* Profile-conditional services (enabled via `COMPOSE_PROFILES` in `nextcloud/.env`)
 
 ## Services
 
