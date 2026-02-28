@@ -1,0 +1,16 @@
+services:
+  # This is a one-shot container: it runs Renovate, checks for dependency updates, and exits.
+  # It is invoked by a cron job rather than running continuously.
+  renovate:
+    image: ghcr.io/renovatebot/renovate:43.46.2
+    container_name: renovate
+    entrypoint: ["sh", "-c", "RENOVATE_TOKEN=$$(cat /run/secrets/gitea_token) renovate"]
+    environment:
+      - RENOVATE_PLATFORM=gitea
+      - RENOVATE_ENDPOINT=${GITEA_URL}
+      - RENOVATE_REPOSITORIES=${RENOVATE_REPOSITORIES}
+      - LOG_LEVEL=info
+    volumes:
+      - ./secrets/gitea_token:/run/secrets/gitea_token:ro
+    security_opt:
+      - no-new-privileges:true
