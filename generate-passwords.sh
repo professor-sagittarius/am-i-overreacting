@@ -5,13 +5,13 @@
 command -v openssl >/dev/null 2>&1 || { echo "Error: openssl is required but not installed."; exit 1; }
 
 # Update this list when adding a new stack
-ENV_FILES="nextcloud/.env gitea/.env vaultwarden/.env backup/.env"
+ENV_FILES="nextcloud/.env gitea/.env vaultwarden/.env backup/.env renovate/.env"
 REPLACED=0
 
 # Create secrets directories and generate secret files (only if they don't already exist)
 # Use umask 077 subshells so files are created with mode 600 from the start,
 # not created insecure and then chmod'd
-install -d -m 700 nextcloud/secrets gitea/secrets backup/secrets vaultwarden/secrets
+install -d -m 700 nextcloud/secrets gitea/secrets backup/secrets vaultwarden/secrets renovate/secrets
 
 SECRETS=(
   "nextcloud/secrets/postgres_password"
