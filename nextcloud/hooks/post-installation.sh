@@ -23,10 +23,15 @@ fi
 # Use system cron for background jobs
 php occ background:cron
 
+# Helper: check if an app is installed (enabled or disabled)
+app_installed() { php occ app:info "$1" &>/dev/null; }
+
 # Install apps from NEXTCLOUD_APPS
 FAILED_APPS=()
 for app in ${NEXTCLOUD_APPS}; do
-  if ! php occ app:install "$app" 2>&1; then
+  if app_installed "$app"; then
+    php occ app:enable "$app" 2>&1 || { echo "Warning: could not enable ${app}"; FAILED_APPS+=("$app"); }
+  elif ! php occ app:install "$app" 2>&1; then
     FAILED_APPS+=("$app")
     echo "Warning: failed to install ${app}"
   fi
