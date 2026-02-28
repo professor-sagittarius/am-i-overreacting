@@ -99,7 +99,7 @@ If using the `fulltextsearch` profile (Elasticsearch), increase the kernel param
 
 ```bash
 # Set for current session
-sysctl -w vm.max_map_count=262144
+sudo sysctl -w vm.max_map_count=262144
 
 # Make persistent across reboots
 echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
@@ -110,10 +110,14 @@ echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
 Set default log rotation for all containers by copying the included `daemon.json` to your Docker daemon configuration:
 
 ```bash
-sudo cp -n daemon.json /etc/docker/daemon.json && sudo systemctl restart docker
+if [ ! -f /etc/docker/daemon.json ]; then
+    sudo cp daemon.json /etc/docker/daemon.json && sudo systemctl restart docker
+else
+    echo "File already exists - merge log-driver and log-opts keys from daemon.json manually, then: sudo systemctl restart docker"
+fi
 ```
 
-If the file already exists (`cp` prints an error and nothing is overwritten), merge the `log-driver` and `log-opts` keys from `daemon.json` into your existing file manually, then restart Docker.
+If the file already exists, nothing is overwritten. Merge the `log-driver` and `log-opts` keys from `daemon.json` into your existing file manually, then restart Docker.
 
 This limits every container to 10MB x 3 log files (30MB max per container). This is especially important because HaRP-spawned ExApp containers are not managed by docker-compose and would otherwise have no log limits.
 
@@ -230,20 +234,20 @@ sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/before-starting/before-startup.sh
 Add a crontab entry on the host to run Nextcloud's background jobs every 5 minutes:
 
 ```bash
-(crontab -l 2>/dev/null; echo "*/5 * * * * docker exec -u www-data nextcloud_app php -f /var/www/html/cron.php") | crontab -
+(sudo crontab -l 2>/dev/null; echo "*/5 * * * * docker exec -u www-data nextcloud_app php -f /var/www/html/cron.php") | sudo crontab -
 ```
 
 This is done before starting the container by design - it ensures cron is active the moment Nextcloud comes up, with no manual follow-up required. The `docker exec` command will fail silently until `nextcloud_app` is running, which is expected and harmless; cron retries every 5 minutes.
 
 #### 10. Start the Nextcloud stack
 
-> *(if harp profile is enabled)* **Note:** The HaRP container mounts `/var/run/docker.sock` to manage ExApp containers, giving it full Docker daemon access. Treat it as a high-trust component and ensure the host is otherwise secured.
-
 ```bash
 docker compose -f nextcloud/docker-compose.yaml up -d
 ```
 
-> **ClamAV**: On first start, `nextcloud_clamav` downloads ~300MB of virus definitions. `docker ps` will show `(healthy)` once definitions are downloaded and clamd is ready - wait for this before uploading files.
+> **HaRP** *(if harp profile is enabled)*: The HaRP container mounts `/var/run/docker.sock` to manage ExApp containers, giving it full Docker daemon access. Treat it as a high-trust component and ensure the host is otherwise secured.
+
+> **ClamAV** *(if clamav profile is enabled)*: On first start, `nextcloud_clamav` downloads ~300MB of virus definitions. `docker ps` will show `(healthy)` once definitions are downloaded and clamd is ready - wait for this before uploading files.
 
 **Verification checkpoints:**
 - Nextcloud initialization: Check `docker logs nextcloud_app` for `Nextcloud is now configured`
@@ -348,7 +352,7 @@ source backup/.env && sudo ssh-keygen -t ed25519 -f ${SSH_KEY_PATH} -N ""
 docker compose -f backup/docker-compose.yaml run --rm borgmatic borgmatic init --encryption repokey-blake2
 
 # Schedule the backup script in cron
-(crontab -l 2>/dev/null; echo "0 2 * * * $(realpath backup/backup.sh) 2>&1 | logger -t borgmatic") | crontab -
+(sudo crontab -l 2>/dev/null; echo "0 2 * * * $(realpath backup/backup.sh) 2>&1 | logger -t borgmatic") | sudo crontab -
 ```
 
 Backups run daily at 2am, retaining 7 daily, 4 weekly, and 3 monthly snapshots. `backup/backup.sh` automatically enables Nextcloud maintenance mode before each backup and disables it after - even on failure. View backup logs with `journalctl -t borgmatic`.

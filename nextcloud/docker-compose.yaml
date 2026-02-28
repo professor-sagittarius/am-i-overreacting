@@ -176,7 +176,7 @@ services:
           memory: ${NEXTCLOUD_IMAGINARY_MEMORY_RESERVATION:-64m}
 
   nextcloud_whiteboard:
-    image: ghcr.io/nextcloud-releases/whiteboard:1.5.6
+    image: ghcr.io/nextcloud-releases/whiteboard:v1.5.6
     container_name: nextcloud_whiteboard
     restart: unless-stopped
     profiles: [whiteboard]
@@ -243,13 +243,14 @@ services:
           memory: ${NEXTCLOUD_CLAMAV_MEMORY_RESERVATION:-64m}
 
   nextcloud_harp:
-    image: ghcr.io/nextcloud/nextcloud-appapi-harp:0.3.2
+    image: ghcr.io/nextcloud/nextcloud-appapi-harp:v0.3.2
     container_name: nextcloud_harp
     hostname: appapi-harp
     restart: unless-stopped
     profiles: [harp]
     depends_on:
-      - nextcloud_app
+      nextcloud_app:
+        condition: service_healthy
     environment:
       - HP_SHARED_KEY=${HP_SHARED_KEY}
       - NC_INSTANCE_URL=http://nextcloud_app

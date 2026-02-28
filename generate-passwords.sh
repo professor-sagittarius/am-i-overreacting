@@ -127,6 +127,7 @@ if command -v free >/dev/null 2>&1; then
     local env_file="$1" key="$2" value="$3"
     [ -f "$env_file" ] || return
     if ! grep -q "^${key}=" "$env_file"; then
+      [ -n "$(tail -c1 "$env_file")" ] && printf '\n' >> "$env_file"
       echo "${key}=${value}" >> "$env_file"
     fi
   }
