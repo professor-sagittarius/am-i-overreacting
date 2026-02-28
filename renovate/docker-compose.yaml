@@ -14,3 +14,9 @@ services:
       - ./secrets/gitea_token:/run/secrets/gitea_token:ro
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${RENOVATE_MEMORY_LIMIT:-512m}
+        reservations:
+          memory: ${RENOVATE_MEMORY_RESERVATION:-64m}

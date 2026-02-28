@@ -153,6 +153,9 @@ if command -v free >/dev/null 2>&1; then
   # backup limits
   set_if_absent backup/.env BORGMATIC_MEMORY_LIMIT "$(calc_mem 3 50 512)"
 
+  # renovate limits
+  set_if_absent renovate/.env RENOVATE_MEMORY_LIMIT "$(calc_mem 3 50 512)"
+
   # reverse-proxy limits
   set_if_absent reverse-proxy/.env NPM_MEMORY_LIMIT         "$(calc_mem 3 100 256)"
   set_if_absent reverse-proxy/.env CLOUDFLARED_MEMORY_LIMIT "$(calc_mem 1 100 128)"

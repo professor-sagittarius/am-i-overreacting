@@ -327,15 +327,15 @@ Renovate opens pull requests on Gitea when Docker image versions are outdated. I
    cp renovate/example.env renovate/.env
    chmod 600 renovate/.env
    ```
-   Set `GITEA_URL` to your Gitea instance URL and `RENOVATE_REPOSITORIES` to your repo (e.g. `renovate-bot/am-i-overreacting`).
+   Set `GITEA_URL` to your Gitea instance API URL (e.g. `http://192.168.1.100:3000/api/v1`) and `RENOVATE_REPOSITORIES` to your repo (e.g. `renovate-bot/am-i-overreacting`).
 5. Add a weekly cron entry (as root):
    ```bash
-   (sudo crontab -l 2>/dev/null; echo "0 3 * * 0 docker compose -f $(realpath renovate/docker-compose.yaml) run --rm renovate 2>&1 | logger -t renovate") | sudo crontab -
+   (sudo crontab -l 2>/dev/null; echo "0 3 * * 0 docker compose -f $(realpath renovate/docker-compose.yaml) --env-file $(realpath renovate/.env) run --rm renovate 2>&1 | logger -t renovate") | sudo crontab -
    ```
 
 **Verification:** Run Renovate in dry-run mode to confirm it can reach Gitea without opening any PRs:
 ```bash
-docker compose -f renovate/docker-compose.yaml run --rm -e RENOVATE_DRY_RUN=lookup renovate
+docker compose -f renovate/docker-compose.yaml --env-file renovate/.env run --rm -e RENOVATE_DRY_RUN=lookup renovate
 ```
 Expected: Renovate logs showing repository discovery, no PRs created.
 
