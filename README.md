@@ -311,6 +311,36 @@ docker compose -f gitea/docker-compose.yaml up -d
 
 ---
 
+### Renovate (Dependency Updates)
+
+Renovate opens pull requests on Gitea when Docker image versions are outdated. It runs weekly via cron.
+
+1. Create a dedicated bot account on your Gitea instance (e.g. `renovate-bot`)
+2. Generate a Gitea personal access token for that account with **Contents: Read and Write** permissions under the repository scope
+3. Populate the token file:
+   ```bash
+   echo -n "<token>" > renovate/secrets/gitea_token
+   chmod 600 renovate/secrets/gitea_token
+   ```
+4. Configure `renovate/.env` from `renovate/example.env`:
+   ```bash
+   cp renovate/example.env renovate/.env
+   chmod 600 renovate/.env
+   ```
+   Set `GITEA_URL` to your Gitea instance URL and `RENOVATE_REPOSITORIES` to your repo (e.g. `renovate-bot/am-i-overreacting`).
+5. Add a weekly cron entry (as root):
+   ```bash
+   (sudo crontab -l 2>/dev/null; echo "0 3 * * 0 docker compose -f $(realpath renovate/docker-compose.yaml) run --rm renovate 2>&1 | logger -t renovate") | sudo crontab -
+   ```
+
+**Verification:** Run Renovate in dry-run mode to confirm it can reach Gitea without opening any PRs:
+```bash
+docker compose -f renovate/docker-compose.yaml run --rm -e RENOVATE_DRY_RUN=lookup renovate
+```
+Expected: Renovate logs showing repository discovery, no PRs created.
+
+---
+
 ### Vaultwarden Stack
 
 ```bash
