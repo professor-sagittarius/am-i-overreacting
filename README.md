@@ -574,7 +574,8 @@ External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/4
      ```bash
      docker exec -u www-data nextcloud_app php occ notify_push:setup https://newdomain.example.com/push
      ```
-  2. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
+  2. *(If whiteboard profile is enabled)* Update `WHITEBOARD_PUBLIC_URL` in `nextcloud/.env` to use the new domain - `before-startup.sh` re-applies `collabBackendUrl` automatically on restart.
+  3. Update the NPM proxy host and Cloudflare Tunnel public hostname to point to the new domain.
 
 - **`overwriteprotocol`** is set to `https` so Nextcloud generates HTTPS links through NPM. To temporarily switch to HTTP for LAN troubleshooting:
   ```bash

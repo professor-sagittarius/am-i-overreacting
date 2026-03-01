@@ -184,6 +184,7 @@ services:
     environment:
       - NEXTCLOUD_URL=http://nextcloud_app
       - JWT_SECRET_KEY=${WHITEBOARD_JWT_SECRET}
+      - MAX_UPLOAD_FILE_SIZE=${WHITEBOARD_MAX_UPLOAD_FILE_SIZE:-10}
     networks:
       - nextcloud_proxy
       - nextcloud
