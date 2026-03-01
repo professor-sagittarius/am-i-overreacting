@@ -1,6 +1,6 @@
 services:
   nextcloud_app:
-    image: nextcloud:33.0.0 # update both app and notify_push to the same version when upgrading
+    image: nextcloud:32.0.6 # update both app and notify_push to the same version when upgrading
     container_name: nextcloud_app
     restart: unless-stopped
     depends_on:
@@ -129,7 +129,7 @@ services:
           memory: ${NEXTCLOUD_REDIS_MEMORY_RESERVATION:-64m}
 
   nextcloud_notify_push:
-    image: nextcloud:33.0.0
+    image: nextcloud:32.0.6
     container_name: nextcloud_notify_push
     entrypoint: ["/scripts/notify_push_entrypoint.sh"]
     restart: unless-stopped
