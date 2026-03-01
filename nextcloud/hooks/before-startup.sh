@@ -10,9 +10,6 @@ set -euo pipefail
 # Helper: check if a profile is enabled in COMPOSE_PROFILES
 profile_enabled() { echo ",${COMPOSE_PROFILES:-}," | grep -q ",$1,"; }
 
-# Helper: check if an app is installed (enabled or disabled)
-app_installed() { php occ app:info "$1" &>/dev/null; }
-
 # ── System config ─────────────────────────────────────────────────────────────
 
 if [ -n "${DEFAULT_PHONE_REGION:-}" ]; then
@@ -48,10 +45,8 @@ fi
 
 FAILED_APPS=()
 for app in ${NEXTCLOUD_APPS:-}; do
-  if app_installed "$app"; then
-    php occ app:enable "$app" 2>&1 || { echo "Warning: could not enable ${app}"; FAILED_APPS+=("$app"); }
-  else
-    php occ app:install "$app" 2>&1 || { echo "Warning: could not install ${app}"; FAILED_APPS+=("$app"); }
+  if ! php occ app:enable "$app" 2>&1; then
+    php occ app:install "$app" 2>&1 || { echo "Warning: could not install/enable ${app}"; FAILED_APPS+=("$app"); }
   fi
 done
 if [ "${#FAILED_APPS[@]}" -gt 0 ]; then
