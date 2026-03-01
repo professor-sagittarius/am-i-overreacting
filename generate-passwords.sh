@@ -29,6 +29,12 @@ for secret in "${SECRETS[@]}"; do
   fi
 done
 
+# redis_password must be readable by www-data (GID 33) inside containers - both
+# nextcloud_app (via PHP at runtime) and nextcloud_notify_push read it directly.
+# Applied unconditionally so existing files are also fixed on re-run.
+chown :33 nextcloud/secrets/redis_password
+chmod 640 nextcloud/secrets/redis_password
+
 for env_file in ${ENV_FILES}; do
   if [ ! -f "${env_file}" ]; then
     echo "Skipping ${env_file} (not found)"

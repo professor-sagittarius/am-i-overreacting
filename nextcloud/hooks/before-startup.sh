@@ -39,6 +39,17 @@ if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS:-}" ]; then
   done
 fi
 
+# Trusted proxies - re-applied on every startup so that updating TRUSTED_PROXIES
+# in .env and restarting is sufficient to change them.
+if [ -n "${TRUSTED_PROXIES:-}" ]; then
+  php occ config:system:delete trusted_proxies 2>/dev/null || true
+  i=0
+  for proxy in ${TRUSTED_PROXIES}; do
+    php occ config:system:set trusted_proxies $i --value="$proxy"
+    i=$((i + 1))
+  done
+fi
+
 # ── App management ────────────────────────────────────────────────────────────
 # Install apps that are not yet installed; enable apps that are installed but
 # disabled. Idempotent: enable on an already-enabled app is a no-op.
