@@ -211,21 +211,17 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 
 #### 8. Prepare Nextcloud volumes
 
-Create the data directory with correct ownership for `www-data` (UID 33), and copy both hooks to the volume. `post-installation.sh` runs once after the first install; `before-startup.sh` runs on every startup to re-apply `.env`-driven configuration:
+Create the data directory with correct ownership for `www-data` (UID 33). The hook scripts (`post-installation.sh` runs once after first install; `before-startup.sh` runs on every startup) are bind-mounted directly from the repo — no copying needed. The `setfacl` commands grant `www-data` (UID 33) execute access and set a default ACL so the permission is inherited automatically by any files updated via `git pull`:
 
 ```bash
-source nextcloud/.env && [ -n "${NEXTCLOUD_HOOKS_VOLUME}" ] || { echo "NEXTCLOUD_HOOKS_VOLUME is not set"; exit 1; }
+source nextcloud/.env
 sudo mkdir -p ${NEXTCLOUD_DATA_VOLUME}
 sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
 sudo mkdir -p ${NEXTCLOUD_REDIS_VOLUME}
-sudo mkdir -p -m 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation
-sudo mkdir -p -m 755 ${NEXTCLOUD_HOOKS_VOLUME}/before-starting
 sudo mkdir -p ${ELASTICSEARCH_DATA_VOLUME}
 sudo chown 1000:1000 ${ELASTICSEARCH_DATA_VOLUME}
-sudo cp nextcloud/hooks/post-installation.sh ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/
-sudo cp nextcloud/hooks/before-startup.sh ${NEXTCLOUD_HOOKS_VOLUME}/before-starting/
-sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/post-installation/post-installation.sh
-sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/before-starting/before-startup.sh
+sudo setfacl -R -m u:33:rx nextcloud/hooks/
+sudo setfacl -d -m u:33:rx nextcloud/hooks/
 ```
 
 #### 9. Set up cron
@@ -283,13 +279,7 @@ The AppAPI deploy daemon is registered automatically by the post-installation ho
 To enable a profile that was not active on first install (e.g., adding `clamav` later):
 
 1. Update `COMPOSE_PROFILES` in `nextcloud/.env`
-2. Copy the updated `before-startup.sh` to the volume (in case it has changed):
-   ```bash
-   source nextcloud/.env
-   sudo cp nextcloud/hooks/before-startup.sh ${NEXTCLOUD_HOOKS_VOLUME}/before-starting/
-   sudo chmod 755 ${NEXTCLOUD_HOOKS_VOLUME}/before-starting/before-startup.sh
-   ```
-3. Restart the stack:
+2. Restart the stack:
    ```bash
    docker compose -f nextcloud/docker-compose.yaml up -d
    ```
