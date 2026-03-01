@@ -157,7 +157,7 @@ The `generate-passwords.sh` script creates `nextcloud/secrets/`, `gitea/secrets/
 - `NEXTCLOUD_PROXY_NETWORK_SUBNET` - Subnet for the nextcloud_proxy_network (default: 172.28.0.0/24)
 - `NEXTCLOUD_INTERNAL_NETWORK_SUBNET` - Subnet for nextcloud_network internal bridge (default: 172.29.0.0/24)
 - `COMPOSE_PROFILES` - Comma-separated list of optional service profiles (`harp,imaginary,whiteboard,clamav,fulltextsearch`); `HP_SHARED_KEY` is only needed when the `harp` profile is enabled
-- `WHITEBOARD_PUBLIC_URL` - Public URL for the whiteboard WebSocket server (needed if `whiteboard` profile is enabled)
+- `WHITEBOARD_PUBLIC_URL` - Path on the Nextcloud domain for the whiteboard WebSocket server, e.g. `https://cloud.example.com/whiteboard` (needed if `whiteboard` profile is enabled)
 - `HP_SHARED_KEY` - HaRP shared key (set by `generate-passwords.sh`; only needed when the `harp` profile is enabled)
 - `DOCKER_VOLUME_DIR` - Base path for Nextcloud persistent files
 
@@ -202,8 +202,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
    - Gitea domain → `gitea_app:3000`
    - Vaultwarden domain → `vaultwarden:80`
    - Uptime Kuma domain → `uptime_kuma:3001`
-   - Whiteboard domain → `nextcloud_whiteboard:3002` *(if whiteboard profile enabled; enable **WebSockets Support** in the NPM proxy host settings)*
-4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the Nextcloud proxy host - this configures security headers, large file uploads, and the notify_push WebSocket proxy
+4. Paste the contents of `reverse-proxy/nginx.config` into the **Advanced** tab of the Nextcloud proxy host - this configures security headers, large file uploads, and WebSocket proxies for notify_push and whiteboard (at `/push/` and `/whiteboard/` respectively)
 5. In the Cloudflare Tunnel config, add public hostnames pointing to `https://nginx-proxy-manager:443` for each domain
 
 ---
