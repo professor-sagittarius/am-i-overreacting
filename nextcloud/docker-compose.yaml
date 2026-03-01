@@ -143,6 +143,7 @@ services:
       - ${NEXTCLOUD_APP_VOLUME}/custom_apps:/var/www/html/custom_apps:ro
       - ${NEXTCLOUD_APP_VOLUME}/config:/var/www/html/config:ro
       - ./scripts/notify_push_entrypoint.sh:/scripts/notify_push_entrypoint.sh:ro
+      - ./secrets/redis_password:/run/secrets/redis_password:ro
     networks:
       - nextcloud_proxy
       - nextcloud
