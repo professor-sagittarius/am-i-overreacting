@@ -40,6 +40,11 @@ if [ "${#FAILED_APPS[@]}" -gt 0 ]; then
   exit 1
 fi
 
+# Enable TOTP second factor provider (resolves "no second factor provider" admin warning)
+if ! php occ app:enable twofactor_totp 2>&1; then
+  php occ app:install twofactor_totp 2>&1 || echo "Warning: could not install/enable twofactor_totp" >&2
+fi
+
 # Configure Talk STUN/TURN servers (spreed)
 if [ -n "${TALK_TURN_SECRET}" ]; then
   # stun_servers is a simple string array: ["host:port"]

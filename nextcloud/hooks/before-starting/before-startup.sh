@@ -64,6 +64,13 @@ if [ "${#FAILED_APPS[@]}" -gt 0 ]; then
   echo "Warning: some apps could not be installed or enabled: ${FAILED_APPS[*]}" >&2
 fi
 
+# ── Two-factor authentication (TOTP) ─────────────────────────────────────────
+# Ensures twofactor_totp is always installed and enabled.
+# Resolves the "no second factor provider" admin panel warning.
+if ! php occ app:enable twofactor_totp 2>/dev/null; then
+  php occ app:install twofactor_totp 2>/dev/null || echo "Warning: could not install/enable twofactor_totp" >&2
+fi
+
 # ── Talk STUN/TURN servers ────────────────────────────────────────────────────
 if [ -n "${TALK_TURN_SECRET:-}" ]; then
   if [ -n "${TALK_STUN_SERVER:-}" ] && ! echo "${TALK_STUN_SERVER}" | grep -q "yourdomain.com"; then
