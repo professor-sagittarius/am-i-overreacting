@@ -287,6 +287,22 @@ To enable a profile that was not active on first install (e.g., adding `clamav` 
 
 ---
 
+### Migrating an Existing Nextcloud Instance
+
+To migrate an existing Nextcloud instance (including Nextcloud AIO) to this stack, use the
+migration toolkit in `nextcloud/migrate/`. See `nextcloud/migrate/README.md` for the full guide.
+
+The migration preserves all user accounts, files, shares, and app data. Two requirements
+must be met before running the migration:
+
+- **Matching versions** - the Nextcloud version on the old instance must exactly match the
+  image tag in `nextcloud/docker-compose.yaml`
+- **Matching data directory path** - `NEXTCLOUD_DATA_DIR` in `nextcloud/.env` must match
+  the old instance's `datadirectory`. The default (`/mnt/ncdata`) matches Nextcloud AIO.
+  The import script checks this before making any changes.
+
+---
+
 ### Gitea Stack
 
 ```bash

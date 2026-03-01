@@ -45,6 +45,18 @@ If your versions differ, you have two options:
 - **Change the image tag** in `nextcloud/docker-compose.yaml` to match the old version,
   complete the migration, then upgrade via the normal Nextcloud upgrade procedure
 
+### Data directory path must match
+
+The container-internal path where Nextcloud stores user files (`datadirectory` in
+`config.php`) must be identical on both the old and new instances. Nextcloud's
+documentation states that changing the data directory location is not supported and
+may cause corruption of database relations.
+
+Set `NEXTCLOUD_DATA_DIR` in `nextcloud/.env` on the new host to match the old instance's
+path. The default in this stack (`/mnt/ncdata`) matches Nextcloud AIO. The import script
+checks this before making any database changes and will print exactly what to set if
+there is a mismatch.
+
 ### Check available disk space on the new host
 
 User files are rsynced directly to their final destination, so only one copy of the data
@@ -94,21 +106,25 @@ maintenance mode until the new server is verified and DNS is switched.**
 ## Step 2: Transfer (NEW HOST)
 
 Run these commands from the **NEW HOST** to pull the files from the old host. The export
-script also prints these commands with the correct paths filled in.
+script prints these commands with the paths filled in - for Docker-based old instances,
+`export.sh` resolves the host-side data path from the container's volume mounts
+automatically, so you can use the printed source path directly.
 
 ```bash
 # NEW HOST - transfer the export bundle (small - contains database and config)
 rsync -avz --progress user@OLD_HOST:~/nc-migration-export/ ./nc-migration-export/
 
 # NEW HOST - transfer user files directly to the final data volume location
-# Find NEXTCLOUD_DATA_VOLUME in nextcloud/.env (default: /var/lib/nextcloud/data)
+# Source: use the host path printed by export.sh (not the container-internal path)
+# Destination: NEXTCLOUD_DATA_VOLUME from nextcloud/.env on the new host
 rsync -avz --progress -t \
-    user@OLD_HOST:/path/to/nextcloud/data/ \
-    /var/lib/nextcloud/data/
+    user@OLD_HOST:<HOST_DATA_DIR>/ \
+    <NEXTCLOUD_DATA_VOLUME>/
 ```
 
-Replace `user@OLD_HOST` with your SSH credentials for the old server, and
-`/path/to/nextcloud/data/` with the data directory path printed by `export.sh`.
+Replace `user@OLD_HOST` with your SSH credentials for the old server. Use the host-side
+source path printed by `export.sh`. For the destination, check `NEXTCLOUD_DATA_VOLUME` in
+`nextcloud/.env` on the new host (default: `/var/lib/nextcloud/data`).
 
 > **Note on the `-t` flag:** This preserves file modification timestamps, which ensures
 > Nextcloud sync clients correctly detect what has and has not changed.
@@ -124,7 +140,8 @@ rsync - it will skip files that already transferred correctly.
 
 ## Step 3: Import (NEW HOST)
 
-From the repository root on the NEW HOST:
+From the repository root on the NEW HOST. The script uses `sudo` to fix file ownership,
+so root access is required (either run as root or ensure your user has sudo privileges):
 
 ```bash
 # NEW HOST
@@ -237,8 +254,8 @@ Then re-run the import script.
 
 ### MySQL migration with pgloader fails
 
-The generated pgloader config is saved to `/tmp/nc-migration-pgloader.load`. Review it,
-fix any connection details, and run pgloader manually:
+The import script prints the pgloader config to stdout when it exits. Copy it, save it
+to a file, fix any connection details, and run pgloader manually:
 
 ```bash
 pgloader /tmp/nc-migration-pgloader.load

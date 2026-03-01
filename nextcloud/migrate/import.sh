@@ -77,6 +77,7 @@ M_VERSION=""
 M_DB_HOST=""
 M_DB_NAME=""
 M_DB_USER=""
+M_DATA_DIRECTORY=""
 
 read_manifest() {
     MANIFEST="$EXPORT_DIR/manifest.json"
@@ -95,11 +96,13 @@ read_manifest() {
     M_DB_HOST=$(jq -r '.dbhost // ""'                    "$MANIFEST")
     M_DB_NAME=$(jq -r '.dbname // ""'                    "$MANIFEST")
     M_DB_USER=$(jq -r '.dbuser // ""'                    "$MANIFEST")
+    M_DATA_DIRECTORY=$(jq -r '.datadirectory // ""'      "$MANIFEST")
 
     verbose "Manifest loaded: $MANIFEST"
-    verbose "  instanceid: $M_INSTANCE_ID"
-    verbose "  version:    $M_VERSION"
-    verbose "  dbtype:     $M_DB_TYPE"
+    verbose "  instanceid:    $M_INSTANCE_ID"
+    verbose "  version:       $M_VERSION"
+    verbose "  dbtype:        $M_DB_TYPE"
+    verbose "  datadirectory: $M_DATA_DIRECTORY"
 }
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
@@ -136,6 +139,12 @@ check_prerequisites() {
         exit 1
     fi
 
+    if [[ ! -f "nextcloud/secrets/admin_password" ]]; then
+        error "nextcloud/secrets/admin_password not found."
+        error "Run generate-passwords.sh and complete the initial stack setup first."
+        exit 1
+    fi
+
     success "All prerequisites met"
 }
 
@@ -148,9 +157,10 @@ check_version() {
         | jq -r '.versionstring' || true)
 
     if [[ -z "$new_version" ]]; then
-        warn "Could not read version from nextcloud_app (container may not be fully healthy yet)."
-        warn "Continuing - verify manually that versions match before proceeding."
-        return
+        error "Could not read version from nextcloud_app."
+        error "Ensure nextcloud_app is running and healthy before importing:"
+        error "  docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
+        exit 1
     fi
 
     verbose "Old version: $M_VERSION"
@@ -184,6 +194,7 @@ NEW_PG_USER=""
 NEW_PG_DB=""
 NEW_PG_PASS=""
 NEW_DATA_VOLUME=""
+NEW_DATA_DIR=""
 
 read_new_credentials() {
     step "Reading new stack configuration (NEW HOST)"
@@ -191,6 +202,7 @@ read_new_credentials() {
     NEW_PG_USER=$(get_env_var "POSTGRES_USER")
     NEW_PG_DB=$(get_env_var "POSTGRES_DB")
     NEW_PG_PASS=$(cat nextcloud/secrets/postgres_password)
+    NEW_DATA_DIR=$(get_env_var "NEXTCLOUD_DATA_DIR")
 
     local volume_dir
     volume_dir=$(get_env_var "DOCKER_VOLUME_DIR")
@@ -207,8 +219,62 @@ read_new_credentials() {
     verbose "PostgreSQL user:  $NEW_PG_USER"
     verbose "PostgreSQL db:    $NEW_PG_DB"
     verbose "Data volume path: $NEW_DATA_VOLUME"
+    verbose "NEXTCLOUD_DATA_DIR: ${NEW_DATA_DIR:-<not set>}"
 
     success "New stack credentials loaded"
+}
+
+# ── Data directory path check ─────────────────────────────────────────────────
+# Nextcloud documentation: "Changing the location of the data directory might
+# cause a corruption of relations in the database and is not supported."
+# Fail fast before any database operations if the paths differ.
+check_data_directory() {
+    step "Checking data directory path compatibility (NEW HOST)"
+
+    if [[ -z "$M_DATA_DIRECTORY" ]]; then
+        warn "No datadirectory in export manifest; skipping path check."
+        warn "Verify manually that NEXTCLOUD_DATA_DIR in nextcloud/.env matches"
+        warn "the old instance's datadirectory before proceeding."
+        return
+    fi
+
+    if [[ -z "$NEW_DATA_DIR" ]]; then
+        warn "NEXTCLOUD_DATA_DIR not set in nextcloud/.env; skipping path check."
+        warn "Ensure NEXTCLOUD_DATA_DIR is set to match the old instance:"
+        warn "  Old instance datadirectory: $M_DATA_DIRECTORY"
+        return
+    fi
+
+    verbose "Old datadirectory:  $M_DATA_DIRECTORY"
+    verbose "New NEXTCLOUD_DATA_DIR: $NEW_DATA_DIR"
+
+    if [[ "$M_DATA_DIRECTORY" == "$NEW_DATA_DIR" ]]; then
+        success "Data directory path matches: $NEW_DATA_DIR"
+        return
+    fi
+
+    echo ""
+    error "DATA DIRECTORY PATH MISMATCH - CANNOT PROCEED"
+    error ""
+    error "  Old instance datadirectory: $M_DATA_DIRECTORY"
+    error "  New NEXTCLOUD_DATA_DIR:     $NEW_DATA_DIR"
+    error ""
+    error "Nextcloud documentation states: \"Changing the location of the data"
+    error "directory might cause a corruption of relations in the database"
+    error "and is not supported.\""
+    error ""
+    error "Set NEXTCLOUD_DATA_DIR in nextcloud/.env to match the old path:"
+    error ""
+    error "  NEXTCLOUD_DATA_DIR=$M_DATA_DIRECTORY"
+    error ""
+    error "The volume mount in docker-compose.yaml is already parameterized as"
+    error "  \${NEXTCLOUD_DATA_VOLUME}:\${NEXTCLOUD_DATA_DIR}"
+    error "so only the .env change is needed. Then recreate the app container:"
+    error ""
+    error "  docker compose -f nextcloud/docker-compose.yaml up -d --force-recreate nextcloud_app"
+    error ""
+    error "Re-run this script after recreating the stack."
+    exit 1
 }
 
 # ── Database import ───────────────────────────────────────────────────────────
@@ -344,12 +410,12 @@ fix_data_ownership() {
     if [[ ! -d "$NEW_DATA_VOLUME" ]]; then
         warn "Data volume directory does not exist: $NEW_DATA_VOLUME"
         warn "If you rsynced files to a different path, fix ownership manually:"
-        warn "  chown -R 33:33 /path/to/nextcloud/data"
+        warn "  sudo chown -R 33:33 /path/to/nextcloud/data"
         return
     fi
 
     info "Setting ownership to www-data (UID 33:GID 33) on: $NEW_DATA_VOLUME"
-    runcmd chown -R 33:33 "$NEW_DATA_VOLUME"
+    runcmd sudo chown -R 33:33 "$NEW_DATA_VOLUME"
     success "Data directory ownership fixed"
 }
 
@@ -542,6 +608,7 @@ main() {
     read_manifest
     read_new_credentials
     check_version
+    check_data_directory
     import_database
     fix_data_ownership
     start_app_and_wait

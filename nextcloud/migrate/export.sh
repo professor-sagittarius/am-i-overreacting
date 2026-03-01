@@ -384,6 +384,35 @@ _write_manifest() {
         }' > "$outfile"
 }
 
+# ── Resolve host path from Docker volume mounts ───────────────────────────────
+# Given the container-internal data directory path, finds the corresponding
+# host-side path using longest-prefix matching on the container's volume mounts.
+# Handles both direct data-dir mounts and parent-directory mounts.
+resolve_host_data_path() {
+    local container_path="$1"
+
+    if [[ "$DOCKER_MODE" != true ]]; then
+        echo "$container_path"
+        return
+    fi
+
+    local mounts_json
+    mounts_json=$(docker inspect --format='{{json .Mounts}}' "$CONTAINER" 2>/dev/null) || {
+        echo ""
+        return
+    }
+
+    local host_path
+    host_path=$(echo "$mounts_json" | jq -r --arg cpath "$container_path" '
+        map(select($cpath == .Destination or ($cpath | startswith(.Destination + "/"))))
+        | sort_by(.Destination | length) | reverse | first
+        | if . then (.Source + ($cpath[(.Destination | length):]))
+          else empty end
+    ' 2>/dev/null) || true
+
+    echo "$host_path"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 # Declare config variables at script scope so on_exit trap can reference them
 instance_id=""
@@ -435,10 +464,14 @@ main() {
     db_user=$(get_config dbuser)
     db_pass=$(get_config dbpassword)
 
+    local host_data_dir
+    host_data_dir=$(resolve_host_data_path "$data_dir")
+
     verbose "instanceid:    $instance_id"
     verbose "version:       $version"
     verbose "dbtype:        $db_type"
     verbose "datadirectory: $data_dir"
+    verbose "host data dir: ${host_data_dir:-<unresolved>}"
 
     local manifest="$EXPORT_DIR/manifest.json"
     if [[ "$DRY_RUN" == true ]]; then
@@ -460,10 +493,16 @@ main() {
     echo "     rsync -avz --progress ./$EXPORT_DIR/ NEW_HOST:~/nc-migration-export/"
     echo ""
     echo "  2. Transfer user files directly to the new data volume location."
-    echo "     Find NEXTCLOUD_DATA_VOLUME in nextcloud/.env (default: /var/lib/nextcloud/data)."
+    echo "     Check NEXTCLOUD_DATA_VOLUME in nextcloud/.env on the new host for the destination path."
     echo "     Rsync directly to the final destination to avoid storing two copies:"
     echo ""
-    echo "     rsync -avz --progress -t $data_dir/ NEW_HOST:/var/lib/nextcloud/data/"
+    if [[ -n "$host_data_dir" ]]; then
+        echo "     rsync -avz --progress -t ${host_data_dir}/ NEW_HOST:<NEXTCLOUD_DATA_VOLUME>/"
+    else
+        warn "Could not resolve host-side path for data directory (container path: $data_dir)."
+        warn "Find the host path with: docker inspect $CONTAINER"
+        echo "     rsync -avz --progress -t <HOST_DATA_DIR>/ NEW_HOST:<NEXTCLOUD_DATA_VOLUME>/"
+    fi
     echo ""
     echo "  3. Once both transfers complete, run on the NEW HOST:"
     echo "     bash nextcloud/migrate/import.sh"
