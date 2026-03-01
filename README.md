@@ -211,7 +211,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 
 #### 8. Prepare Nextcloud volumes
 
-Create the data directory with correct ownership for `www-data` (UID 33). The hook scripts (`post-installation.sh` runs once after first install; `before-startup.sh` runs on every startup) are bind-mounted directly from the repo — no copying needed. The `setfacl` commands grant `www-data` (UID 33) execute access and set a default ACL so the permission is inherited automatically by any files updated via `git pull`:
+Create the data directory with correct ownership for `www-data` (UID 33). The hook scripts (`post-installation.sh` runs once after first install; `before-startup.sh` runs on every startup) are bind-mounted directly from the repo — no copying needed. `chgrp 33` sets the group to `www-data` so the container can execute the scripts; git tracks them as executable (`755`), which with a `0027` umask produces `750` on checkout, giving the group read and execute access:
 
 ```bash
 source nextcloud/.env
@@ -220,8 +220,7 @@ sudo chown 33:33 ${NEXTCLOUD_DATA_VOLUME}
 sudo mkdir -p ${NEXTCLOUD_REDIS_VOLUME}
 sudo mkdir -p ${ELASTICSEARCH_DATA_VOLUME}
 sudo chown 1000:1000 ${ELASTICSEARCH_DATA_VOLUME}
-sudo setfacl -R -m u:33:rx nextcloud/hooks/
-sudo setfacl -d -m u:33:rx nextcloud/hooks/
+sudo chgrp -R 33 nextcloud/hooks/
 ```
 
 #### 9. Set up cron
