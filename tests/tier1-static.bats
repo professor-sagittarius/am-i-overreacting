@@ -81,3 +81,87 @@ _validate_compose() {
 @test "compose config: renovate" {
 	_validate_compose "renovate"
 }
+
+# -- preflight-check.sh -------------------------------------------------------
+
+@test "preflight-check: passes when no changeme values present" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+	for stack in nextcloud gitea vaultwarden backup reverse-proxy; do
+		mkdir -p "$tmpdir/$stack"
+		echo "SOME_VAR=real-value" >"$tmpdir/$stack/.env"
+	done
+
+	run bash -c "cd '$tmpdir' && bash '$REPO_ROOT/preflight-check.sh'"
+	assert_success
+	assert_output --partial "Preflight OK"
+
+	rm -rf "$tmpdir"
+}
+
+@test "preflight-check: exits non-zero when changeme placeholder present" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+	for stack in nextcloud gitea vaultwarden backup reverse-proxy; do
+		mkdir -p "$tmpdir/$stack"
+		echo "SOME_VAR=real-value" >"$tmpdir/$stack/.env"
+	done
+	echo "SECRET=changeme" >>"$tmpdir/nextcloud/.env"
+
+	run bash -c "cd '$tmpdir' && bash '$REPO_ROOT/preflight-check.sh'"
+	assert_failure
+	assert_output --partial "ERROR"
+
+	rm -rf "$tmpdir"
+}
+
+# -- generate-passwords.sh ----------------------------------------------------
+
+@test "generate-passwords: creates expected secret files" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+
+	for stack in nextcloud gitea vaultwarden backup renovate; do
+		mkdir -p "$tmpdir/$stack"
+		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
+			echo "" >"$tmpdir/$stack/.env"
+	done
+	for stack in nextcloud gitea vaultwarden backup renovate; do
+		sed -i 's/=changeme\b/=already-set/g' "$tmpdir/$stack/.env" 2>/dev/null || true
+	done
+
+	run bash -c "cd '$tmpdir' && bash '$REPO_ROOT/generate-passwords.sh'"
+	assert_success
+
+	local expected_secrets=(
+		"nextcloud/secrets/postgres_password"
+		"nextcloud/secrets/admin_password"
+		"nextcloud/secrets/redis_password"
+		"gitea/secrets/postgres_password"
+		"backup/secrets/borg_passphrase"
+		"vaultwarden/secrets/admin_token"
+	)
+	for secret in "${expected_secrets[@]}"; do
+		assert [ -f "$tmpdir/$secret" ]
+		assert [ -s "$tmpdir/$secret" ]
+	done
+
+	rm -rf "$tmpdir"
+}
+
+@test "generate-passwords: second run does not crash" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+	for stack in nextcloud gitea vaultwarden backup renovate; do
+		mkdir -p "$tmpdir/$stack"
+		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
+			echo "" >"$tmpdir/$stack/.env"
+	done
+
+	run bash -c "cd '$tmpdir' && bash '$REPO_ROOT/generate-passwords.sh'"
+	assert_success
+	run bash -c "cd '$tmpdir' && bash '$REPO_ROOT/generate-passwords.sh'"
+	assert_success
+
+	rm -rf "$tmpdir"
+}
