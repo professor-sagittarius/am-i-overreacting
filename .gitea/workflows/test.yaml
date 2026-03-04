@@ -1,0 +1,23 @@
+# .gitea/workflows/test.yaml
+name: Static tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tier1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck shfmt
+
+      - name: Run tier 1 tests
+        run: bash tests/run-tests.sh tier1
