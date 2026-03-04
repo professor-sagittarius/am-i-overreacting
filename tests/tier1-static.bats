@@ -165,3 +165,79 @@ _validate_compose() {
 
 	rm -rf "$tmpdir"
 }
+
+# -- migration script flags ---------------------------------------------------
+
+@test "export.sh --help exits 0 and prints usage" {
+	run bash "$REPO_ROOT/nextcloud/migrate/export.sh" --help
+	assert_success
+	assert_output --partial "Usage:"
+}
+
+@test "export.sh --unknown-flag exits non-zero" {
+	run bash "$REPO_ROOT/nextcloud/migrate/export.sh" --unknown-flag-xyz
+	assert_failure
+}
+
+@test "import.sh --help exits 0 and prints usage" {
+	run bash "$REPO_ROOT/nextcloud/migrate/import.sh" --help
+	assert_success
+	assert_output --partial "Usage:"
+}
+
+# -- example.env completeness -------------------------------------------------
+
+# Check that every ${VAR} reference in a compose file has a corresponding
+# entry in the example.env. Variables with ${VAR:-default} are included too,
+# since a missing default-less reference is a likely misconfiguration.
+_check_env_completeness() {
+	local compose="$1" example="$2"
+	local missing=()
+
+	while IFS= read -r var; do
+		if ! grep -qE "^${var}=" "$example" &&
+			! grep -qE "^#\s*${var}=" "$example"; then
+			missing+=("$var")
+		fi
+	done < <(
+		grep -oE '\$\{[A-Z_][A-Z0-9_]*[^}]*\}' "$compose" \
+			| grep -oE '^[A-Z_][A-Z0-9_]+' \
+			| sort -u
+	)
+
+	if [[ ${#missing[@]} -gt 0 ]]; then
+		echo "Variables in $(basename "$compose") not found in $(basename "$example"):"
+		printf '  %s\n' "${missing[@]}"
+		return 1
+	fi
+}
+
+@test "example.env completeness: nextcloud" {
+	_check_env_completeness \
+		"$REPO_ROOT/nextcloud/docker-compose.yaml" \
+		"$REPO_ROOT/nextcloud/example.env"
+}
+
+@test "example.env completeness: gitea" {
+	_check_env_completeness \
+		"$REPO_ROOT/gitea/docker-compose.yaml" \
+		"$REPO_ROOT/gitea/example.env"
+}
+
+@test "example.env completeness: vaultwarden" {
+	_check_env_completeness \
+		"$REPO_ROOT/vaultwarden/docker-compose.yaml" \
+		"$REPO_ROOT/vaultwarden/example.env"
+}
+
+@test "example.env completeness: reverse-proxy" {
+	_check_env_completeness \
+		"$REPO_ROOT/reverse-proxy/docker-compose.yaml" \
+		"$REPO_ROOT/reverse-proxy/example.env"
+}
+
+@test "example.env completeness: backup" {
+	_check_env_completeness \
+		"$REPO_ROOT/backup/docker-compose.yaml" \
+		"$REPO_ROOT/backup/example.env"
+}
