@@ -12,11 +12,11 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # ── Output helpers ────────────────────────────────────────────────────────────
-info()    { echo -e "${BOLD}[INFO]${NC}  $*"; }
+info() { echo -e "${BOLD}[INFO]${NC}  $*"; }
 success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-step()    { echo -e "\n${BOLD}━━━ $* ━━━${NC}"; }
+warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+step() { echo -e "\n${BOLD}━━━ $* ━━━${NC}"; }
 verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ EXPORT_DIR="nc-migration-export"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 usage() {
-    cat <<EOF
+	cat <<EOF
 Usage: bash nextcloud/migrate/import.sh [OPTIONS]
 
 Run on the NEW HOST from the repository root directory.
@@ -41,29 +41,39 @@ EOF
 }
 
 while [[ $# -gt 0 ]]; do
-    case $1 in
-        --dry-run)      DRY_RUN=true ;;
-        -v|--verbose)   VERBOSE=true ;;
-        --export-dir)   EXPORT_DIR="$2"; shift ;;
-        -h|--help)      usage; exit 0 ;;
-        *) error "Unknown option: $1"; usage; exit 1 ;;
-    esac
-    shift
+	case $1 in
+	--dry-run) DRY_RUN=true ;;
+	-v | --verbose) VERBOSE=true ;;
+	--export-dir)
+		EXPORT_DIR="$2"
+		shift
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		error "Unknown option: $1"
+		usage
+		exit 1
+		;;
+	esac
+	shift
 done
 
 # ── Dry-run wrapper ───────────────────────────────────────────────────────────
 runcmd() {
-    if [[ "$DRY_RUN" == true ]]; then
-        echo -e "  ${YELLOW}[dry-run]${NC} $*"
-    else
-        "$@"
-    fi
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} $*"
+	else
+		"$@"
+	fi
 }
 
 # ── .env parser ───────────────────────────────────────────────────────────────
 get_env_var() {
-    local key="$1" file="${2:-nextcloud/.env}"
-    grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
+	local key="$1" file="${2:-nextcloud/.env}"
+	grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
 }
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
@@ -80,113 +90,113 @@ M_DB_USER=""
 M_DATA_DIRECTORY=""
 
 read_manifest() {
-    MANIFEST="$EXPORT_DIR/manifest.json"
-    if [[ ! -f "$MANIFEST" ]]; then
-        error "Export manifest not found: $MANIFEST"
-        error "Run export.sh on the OLD HOST first, then transfer the export bundle here."
-        exit 1
-    fi
+	MANIFEST="$EXPORT_DIR/manifest.json"
+	if [[ ! -f "$MANIFEST" ]]; then
+		error "Export manifest not found: $MANIFEST"
+		error "Run export.sh on the OLD HOST first, then transfer the export bundle here."
+		exit 1
+	fi
 
-    M_INSTANCE_ID=$(jq -r '.instanceid'                  "$MANIFEST")
-    M_PASSWORD_SALT=$(jq -r '.passwordsalt'              "$MANIFEST")
-    M_SECRET=$(jq -r '.secret'                           "$MANIFEST")
-    M_DATA_FINGERPRINT=$(jq -r '.data_fingerprint // ""' "$MANIFEST")
-    M_DB_TYPE=$(jq -r '.dbtype'                          "$MANIFEST")
-    M_VERSION=$(jq -r '.version'                         "$MANIFEST")
-    M_DB_HOST=$(jq -r '.dbhost // ""'                    "$MANIFEST")
-    M_DB_NAME=$(jq -r '.dbname // ""'                    "$MANIFEST")
-    M_DB_USER=$(jq -r '.dbuser // ""'                    "$MANIFEST")
-    M_DATA_DIRECTORY=$(jq -r '.datadirectory // ""'      "$MANIFEST")
+	M_INSTANCE_ID=$(jq -r '.instanceid' "$MANIFEST")
+	M_PASSWORD_SALT=$(jq -r '.passwordsalt' "$MANIFEST")
+	M_SECRET=$(jq -r '.secret' "$MANIFEST")
+	M_DATA_FINGERPRINT=$(jq -r '.data_fingerprint // ""' "$MANIFEST")
+	M_DB_TYPE=$(jq -r '.dbtype' "$MANIFEST")
+	M_VERSION=$(jq -r '.version' "$MANIFEST")
+	M_DB_HOST=$(jq -r '.dbhost // ""' "$MANIFEST")
+	M_DB_NAME=$(jq -r '.dbname // ""' "$MANIFEST")
+	M_DB_USER=$(jq -r '.dbuser // ""' "$MANIFEST")
+	M_DATA_DIRECTORY=$(jq -r '.datadirectory // ""' "$MANIFEST")
 
-    verbose "Manifest loaded: $MANIFEST"
-    verbose "  instanceid:    $M_INSTANCE_ID"
-    verbose "  version:       $M_VERSION"
-    verbose "  dbtype:        $M_DB_TYPE"
-    verbose "  datadirectory: $M_DATA_DIRECTORY"
+	verbose "Manifest loaded: $MANIFEST"
+	verbose "  instanceid:    $M_INSTANCE_ID"
+	verbose "  version:       $M_VERSION"
+	verbose "  dbtype:        $M_DB_TYPE"
+	verbose "  datadirectory: $M_DATA_DIRECTORY"
 }
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
 check_prerequisites() {
-    step "Checking prerequisites (NEW HOST)"
+	step "Checking prerequisites (NEW HOST)"
 
-    if [[ ! -f "nextcloud/docker-compose.yaml" ]]; then
-        error "This script must be run from the repository root directory."
-        error "Example: bash nextcloud/migrate/import.sh"
-        exit 1
-    fi
+	if [[ ! -f "nextcloud/docker-compose.yaml" ]]; then
+		error "This script must be run from the repository root directory."
+		error "Example: bash nextcloud/migrate/import.sh"
+		exit 1
+	fi
 
-    local missing=()
-    command -v jq     &>/dev/null || missing+=("jq")
-    command -v docker &>/dev/null || missing+=("docker")
+	local missing=()
+	command -v jq &>/dev/null || missing+=("jq")
+	command -v docker &>/dev/null || missing+=("docker")
 
-    if [[ "${#missing[@]}" -gt 0 ]]; then
-        error "Missing required tools: ${missing[*]}"
-        error "Install with: apt-get install ${missing[*]}"
-        exit 1
-    fi
+	if [[ "${#missing[@]}" -gt 0 ]]; then
+		error "Missing required tools: ${missing[*]}"
+		error "Install with: apt-get install ${missing[*]}"
+		exit 1
+	fi
 
-    if ! docker compose -f nextcloud/docker-compose.yaml ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
-        error "nextcloud_postgres is not running. Start the stack first:"
-        error "  docker compose -f nextcloud/docker-compose.yaml up -d"
-        error "Verify the fresh install works (log in with the generated admin password),"
-        error "then re-run this script."
-        exit 1
-    fi
+	if ! docker compose -f nextcloud/docker-compose.yaml ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
+		error "nextcloud_postgres is not running. Start the stack first:"
+		error "  docker compose -f nextcloud/docker-compose.yaml up -d"
+		error "Verify the fresh install works (log in with the generated admin password),"
+		error "then re-run this script."
+		exit 1
+	fi
 
-    if [[ ! -f "nextcloud/secrets/postgres_password" ]]; then
-        error "nextcloud/secrets/postgres_password not found."
-        error "Run generate-passwords.sh and complete the initial stack setup first."
-        exit 1
-    fi
+	if [[ ! -f "nextcloud/secrets/postgres_password" ]]; then
+		error "nextcloud/secrets/postgres_password not found."
+		error "Run generate-passwords.sh and complete the initial stack setup first."
+		exit 1
+	fi
 
-    if [[ ! -f "nextcloud/secrets/admin_password" ]]; then
-        error "nextcloud/secrets/admin_password not found."
-        error "Run generate-passwords.sh and complete the initial stack setup first."
-        exit 1
-    fi
+	if [[ ! -f "nextcloud/secrets/admin_password" ]]; then
+		error "nextcloud/secrets/admin_password not found."
+		error "Run generate-passwords.sh and complete the initial stack setup first."
+		exit 1
+	fi
 
-    success "All prerequisites met"
+	success "All prerequisites met"
 }
 
 # ── Version check ─────────────────────────────────────────────────────────────
 check_version() {
-    step "Checking Nextcloud version compatibility (NEW HOST)"
+	step "Checking Nextcloud version compatibility (NEW HOST)"
 
-    local new_version
-    new_version=$(docker exec nextcloud_app php occ status --output=json 2>/dev/null \
-        | jq -r '.versionstring' || true)
+	local new_version
+	new_version=$(docker exec nextcloud_app php occ status --output=json 2>/dev/null |
+		jq -r '.versionstring' || true)
 
-    if [[ -z "$new_version" ]]; then
-        error "Could not read version from nextcloud_app."
-        error "Ensure nextcloud_app is running and healthy before importing:"
-        error "  docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
-        exit 1
-    fi
+	if [[ -z "$new_version" ]]; then
+		error "Could not read version from nextcloud_app."
+		error "Ensure nextcloud_app is running and healthy before importing:"
+		error "  docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
+		exit 1
+	fi
 
-    verbose "Old version: $M_VERSION"
-    verbose "New version: $new_version"
+	verbose "Old version: $M_VERSION"
+	verbose "New version: $new_version"
 
-    if [[ "$M_VERSION" != "$new_version" ]]; then
-        echo ""
-        error "╔══════════════════════════════════════════════════════════════════╗"
-        error "║              VERSION MISMATCH - CANNOT PROCEED                  ║"
-        error "╚══════════════════════════════════════════════════════════════════╝"
-        error "Old instance version: $M_VERSION"
-        error "New stack version:    $new_version"
-        error ""
-        error "Nextcloud will refuse to start if versions do not match exactly."
-        error ""
-        error "Options:"
-        error "  A) On the OLD HOST: upgrade Nextcloud to version $new_version,"
-        error "     re-run export.sh, re-transfer, then retry this script."
-        error ""
-        error "  B) In nextcloud/docker-compose.yaml: change the image tag to"
-        error "     nextcloud:$M_VERSION, restart the stack to match the old version,"
-        error "     complete the migration, then upgrade afterwards."
-        exit 1
-    fi
+	if [[ "$M_VERSION" != "$new_version" ]]; then
+		echo ""
+		error "╔══════════════════════════════════════════════════════════════════╗"
+		error "║              VERSION MISMATCH - CANNOT PROCEED                  ║"
+		error "╚══════════════════════════════════════════════════════════════════╝"
+		error "Old instance version: $M_VERSION"
+		error "New stack version:    $new_version"
+		error ""
+		error "Nextcloud will refuse to start if versions do not match exactly."
+		error ""
+		error "Options:"
+		error "  A) On the OLD HOST: upgrade Nextcloud to version $new_version,"
+		error "     re-run export.sh, re-transfer, then retry this script."
+		error ""
+		error "  B) In nextcloud/docker-compose.yaml: change the image tag to"
+		error "     nextcloud:$M_VERSION, restart the stack to match the old version,"
+		error "     complete the migration, then upgrade afterwards."
+		exit 1
+	fi
 
-    success "Version match confirmed: $new_version"
+	success "Version match confirmed: $new_version"
 }
 
 # ── New stack credentials ─────────────────────────────────────────────────────
@@ -197,31 +207,31 @@ NEW_DATA_VOLUME=""
 NEW_DATA_DIR=""
 
 read_new_credentials() {
-    step "Reading new stack configuration (NEW HOST)"
+	step "Reading new stack configuration (NEW HOST)"
 
-    NEW_PG_USER=$(get_env_var "POSTGRES_USER")
-    NEW_PG_DB=$(get_env_var "POSTGRES_DB")
-    NEW_PG_PASS=$(cat nextcloud/secrets/postgres_password)
-    NEW_DATA_DIR=$(get_env_var "NEXTCLOUD_DATA_DIR")
+	NEW_PG_USER=$(get_env_var "POSTGRES_USER")
+	NEW_PG_DB=$(get_env_var "POSTGRES_DB")
+	NEW_PG_PASS=$(cat nextcloud/secrets/postgres_password)
+	NEW_DATA_DIR=$(get_env_var "NEXTCLOUD_DATA_DIR")
 
-    local volume_dir
-    volume_dir=$(get_env_var "DOCKER_VOLUME_DIR")
-    if [[ -z "$volume_dir" ]]; then
-        volume_dir="/var/lib/nextcloud"
-    fi
-    NEW_DATA_VOLUME="${volume_dir}/data"
+	local volume_dir
+	volume_dir=$(get_env_var "DOCKER_VOLUME_DIR")
+	if [[ -z "$volume_dir" ]]; then
+		volume_dir="/var/lib/nextcloud"
+	fi
+	NEW_DATA_VOLUME="${volume_dir}/data"
 
-    if [[ -z "$NEW_PG_USER" || -z "$NEW_PG_DB" ]]; then
-        error "Could not read POSTGRES_USER or POSTGRES_DB from nextcloud/.env"
-        exit 1
-    fi
+	if [[ -z "$NEW_PG_USER" || -z "$NEW_PG_DB" ]]; then
+		error "Could not read POSTGRES_USER or POSTGRES_DB from nextcloud/.env"
+		exit 1
+	fi
 
-    verbose "PostgreSQL user:  $NEW_PG_USER"
-    verbose "PostgreSQL db:    $NEW_PG_DB"
-    verbose "Data volume path: $NEW_DATA_VOLUME"
-    verbose "NEXTCLOUD_DATA_DIR: ${NEW_DATA_DIR:-<not set>}"
+	verbose "PostgreSQL user:  $NEW_PG_USER"
+	verbose "PostgreSQL db:    $NEW_PG_DB"
+	verbose "Data volume path: $NEW_DATA_VOLUME"
+	verbose "NEXTCLOUD_DATA_DIR: ${NEW_DATA_DIR:-<not set>}"
 
-    success "New stack credentials loaded"
+	success "New stack credentials loaded"
 }
 
 # ── Data directory path check ─────────────────────────────────────────────────
@@ -229,135 +239,135 @@ read_new_credentials() {
 # cause a corruption of relations in the database and is not supported."
 # Fail fast before any database operations if the paths differ.
 check_data_directory() {
-    step "Checking data directory path compatibility (NEW HOST)"
+	step "Checking data directory path compatibility (NEW HOST)"
 
-    if [[ -z "$M_DATA_DIRECTORY" ]]; then
-        warn "No datadirectory in export manifest; skipping path check."
-        warn "Verify manually that NEXTCLOUD_DATA_DIR in nextcloud/.env matches"
-        warn "the old instance's datadirectory before proceeding."
-        return
-    fi
+	if [[ -z "$M_DATA_DIRECTORY" ]]; then
+		warn "No datadirectory in export manifest; skipping path check."
+		warn "Verify manually that NEXTCLOUD_DATA_DIR in nextcloud/.env matches"
+		warn "the old instance's datadirectory before proceeding."
+		return
+	fi
 
-    if [[ -z "$NEW_DATA_DIR" ]]; then
-        warn "NEXTCLOUD_DATA_DIR not set in nextcloud/.env; skipping path check."
-        warn "Ensure NEXTCLOUD_DATA_DIR is set to match the old instance:"
-        warn "  Old instance datadirectory: $M_DATA_DIRECTORY"
-        return
-    fi
+	if [[ -z "$NEW_DATA_DIR" ]]; then
+		warn "NEXTCLOUD_DATA_DIR not set in nextcloud/.env; skipping path check."
+		warn "Ensure NEXTCLOUD_DATA_DIR is set to match the old instance:"
+		warn "  Old instance datadirectory: $M_DATA_DIRECTORY"
+		return
+	fi
 
-    verbose "Old datadirectory:  $M_DATA_DIRECTORY"
-    verbose "New NEXTCLOUD_DATA_DIR: $NEW_DATA_DIR"
+	verbose "Old datadirectory:  $M_DATA_DIRECTORY"
+	verbose "New NEXTCLOUD_DATA_DIR: $NEW_DATA_DIR"
 
-    if [[ "$M_DATA_DIRECTORY" == "$NEW_DATA_DIR" ]]; then
-        success "Data directory path matches: $NEW_DATA_DIR"
-        return
-    fi
+	if [[ "$M_DATA_DIRECTORY" == "$NEW_DATA_DIR" ]]; then
+		success "Data directory path matches: $NEW_DATA_DIR"
+		return
+	fi
 
-    echo ""
-    error "DATA DIRECTORY PATH MISMATCH - CANNOT PROCEED"
-    error ""
-    error "  Old instance datadirectory: $M_DATA_DIRECTORY"
-    error "  New NEXTCLOUD_DATA_DIR:     $NEW_DATA_DIR"
-    error ""
-    error "Nextcloud documentation states: \"Changing the location of the data"
-    error "directory might cause a corruption of relations in the database"
-    error "and is not supported.\""
-    error ""
-    error "Set NEXTCLOUD_DATA_DIR in nextcloud/.env to match the old path:"
-    error ""
-    error "  NEXTCLOUD_DATA_DIR=$M_DATA_DIRECTORY"
-    error ""
-    error "The volume mount in docker-compose.yaml is already parameterized as"
-    error "  \${NEXTCLOUD_DATA_VOLUME}:\${NEXTCLOUD_DATA_DIR}"
-    error "so only the .env change is needed. Then recreate the app container:"
-    error ""
-    error "  docker compose -f nextcloud/docker-compose.yaml up -d --force-recreate nextcloud_app"
-    error ""
-    error "Re-run this script after recreating the stack."
-    exit 1
+	echo ""
+	error "DATA DIRECTORY PATH MISMATCH - CANNOT PROCEED"
+	error ""
+	error "  Old instance datadirectory: $M_DATA_DIRECTORY"
+	error "  New NEXTCLOUD_DATA_DIR:     $NEW_DATA_DIR"
+	error ""
+	error "Nextcloud documentation states: \"Changing the location of the data"
+	error "directory might cause a corruption of relations in the database"
+	error "and is not supported.\""
+	error ""
+	error "Set NEXTCLOUD_DATA_DIR in nextcloud/.env to match the old path:"
+	error ""
+	error "  NEXTCLOUD_DATA_DIR=$M_DATA_DIRECTORY"
+	error ""
+	error "The volume mount in docker-compose.yaml is already parameterized as"
+	error "  \${NEXTCLOUD_DATA_VOLUME}:\${NEXTCLOUD_DATA_DIR}"
+	error "so only the .env change is needed. Then recreate the app container:"
+	error ""
+	error "  docker compose -f nextcloud/docker-compose.yaml up -d --force-recreate nextcloud_app"
+	error ""
+	error "Re-run this script after recreating the stack."
+	exit 1
 }
 
 # ── Database import ───────────────────────────────────────────────────────────
 
 # pg_restore via stdin - avoids any quoting issues with secrets in strings
 _pg_restore() {
-    local dump_file="$1" user="$2" db="$3" pass="$4"
-    docker exec -i \
-        -e PGPASSWORD="$pass" \
-        nextcloud_postgres \
-        pg_restore --no-owner --no-acl -U "$user" -d "$db" \
-        < "$dump_file"
+	local dump_file="$1" user="$2" db="$3" pass="$4"
+	docker exec -i \
+		-e PGPASSWORD="$pass" \
+		nextcloud_postgres \
+		pg_restore --no-owner --no-acl -U "$user" -d "$db" \
+		<"$dump_file"
 }
 
 _psql() {
-    local user="$1" pass="$2" db="$3" sql="$4"
-    docker exec \
-        -e PGPASSWORD="$pass" \
-        nextcloud_postgres \
-        psql -U "$user" -d "$db" -c "$sql"
+	local user="$1" pass="$2" db="$3" sql="$4"
+	docker exec \
+		-e PGPASSWORD="$pass" \
+		nextcloud_postgres \
+		psql -U "$user" -d "$db" -c "$sql"
 }
 
 import_database() {
-    step "Importing database (NEW HOST)"
+	step "Importing database (NEW HOST)"
 
-    case "$M_DB_TYPE" in
-        pgsql)
-            local dump_file="$EXPORT_DIR/db-dump.pgdump"
-            if [[ ! -f "$dump_file" ]]; then
-                error "PostgreSQL dump not found: $dump_file"
-                exit 1
-            fi
+	case "$M_DB_TYPE" in
+	pgsql)
+		local dump_file="$EXPORT_DIR/db-dump.pgdump"
+		if [[ ! -f "$dump_file" ]]; then
+			error "PostgreSQL dump not found: $dump_file"
+			exit 1
+		fi
 
-            info "Stopping nextcloud_app (keeping nextcloud_postgres running)..."
-            runcmd docker compose -f nextcloud/docker-compose.yaml stop nextcloud_app
+		info "Stopping nextcloud_app (keeping nextcloud_postgres running)..."
+		runcmd docker compose -f nextcloud/docker-compose.yaml stop nextcloud_app
 
-            info "Dropping and recreating database '$NEW_PG_DB'..."
-            if [[ "$DRY_RUN" == true ]]; then
-                echo -e "  ${YELLOW}[dry-run]${NC} Would drop and recreate database: $NEW_PG_DB"
-            else
-                _psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
-                    "DROP DATABASE IF EXISTS \"${NEW_PG_DB}\";"
-                _psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
-                    "CREATE DATABASE \"${NEW_PG_DB}\";"
-            fi
+		info "Dropping and recreating database '$NEW_PG_DB'..."
+		if [[ "$DRY_RUN" == true ]]; then
+			echo -e "  ${YELLOW}[dry-run]${NC} Would drop and recreate database: $NEW_PG_DB"
+		else
+			_psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
+				"DROP DATABASE IF EXISTS \"${NEW_PG_DB}\";"
+			_psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
+				"CREATE DATABASE \"${NEW_PG_DB}\";"
+		fi
 
-            info "Restoring database dump (this may take a while)..."
-            if [[ "$DRY_RUN" == true ]]; then
-                echo -e "  ${YELLOW}[dry-run]${NC} Would restore: $dump_file -> $NEW_PG_DB"
-            else
-                _pg_restore "$dump_file" "$NEW_PG_USER" "$NEW_PG_DB" "$NEW_PG_PASS"
-            fi
+		info "Restoring database dump (this may take a while)..."
+		if [[ "$DRY_RUN" == true ]]; then
+			echo -e "  ${YELLOW}[dry-run]${NC} Would restore: $dump_file -> $NEW_PG_DB"
+		else
+			_pg_restore "$dump_file" "$NEW_PG_USER" "$NEW_PG_DB" "$NEW_PG_PASS"
+		fi
 
-            success "PostgreSQL database restored"
-            ;;
+		success "PostgreSQL database restored"
+		;;
 
-        mysql)
-            local dump_file="$EXPORT_DIR/db-dump.sql"
-            if [[ ! -f "$dump_file" ]]; then
-                error "MySQL dump not found: $dump_file"
-                exit 1
-            fi
+	mysql)
+		local dump_file="$EXPORT_DIR/db-dump.sql"
+		if [[ ! -f "$dump_file" ]]; then
+			error "MySQL dump not found: $dump_file"
+			exit 1
+		fi
 
-            echo ""
-            warn "MySQL/MariaDB -> PostgreSQL migration requires pgloader."
-            warn "This is a multi-step process that cannot be fully automated here"
-            warn "because it requires a live connection to the OLD MySQL host."
-            echo ""
-            info "Steps to complete the MySQL -> PostgreSQL migration:"
-            echo ""
-            echo "  1. Install pgloader on this host:"
-            echo "       apt-get install pgloader"
-            echo ""
-            echo "  2. Expose the new PostgreSQL port temporarily (or run pgloader"
-            echo "     from inside the nextcloud_postgres container)."
-            echo ""
-            echo "  3. Create a pgloader config file:"
+		echo ""
+		warn "MySQL/MariaDB -> PostgreSQL migration requires pgloader."
+		warn "This is a multi-step process that cannot be fully automated here"
+		warn "because it requires a live connection to the OLD MySQL host."
+		echo ""
+		info "Steps to complete the MySQL -> PostgreSQL migration:"
+		echo ""
+		echo "  1. Install pgloader on this host:"
+		echo "       apt-get install pgloader"
+		echo ""
+		echo "  2. Expose the new PostgreSQL port temporarily (or run pgloader"
+		echo "     from inside the nextcloud_postgres container)."
+		echo ""
+		echo "  3. Create a pgloader config file:"
 
-            local old_host="${M_DB_HOST%%:*}"
-            local old_name="${M_DB_NAME:-<dbname>}"
-            local old_user="${M_DB_USER:-<dbuser>}"
+		local old_host="${M_DB_HOST%%:*}"
+		local old_name="${M_DB_NAME:-<dbname>}"
+		local old_user="${M_DB_USER:-<dbuser>}"
 
-            cat <<PGEOF
+		cat <<PGEOF
 
        File: /tmp/nc-migration-pgloader.load
        ----------------------------------------
@@ -370,256 +380,256 @@ import_database() {
        ----------------------------------------
 
 PGEOF
-            echo "  4. Run: pgloader /tmp/nc-migration-pgloader.load"
-            echo ""
-            echo "  5. Then re-run this import script - it will skip the DB step"
-            echo "     and continue with the remaining steps."
-            echo ""
-            echo "Alternatively: if you can restore the MySQL dump into a temporary"
-            echo "MySQL Docker container, run pgloader against localhost instead."
-            echo ""
-            error "Stopping here. Complete the pgloader step above, then re-run."
-            exit 1
-            ;;
+		echo "  4. Run: pgloader /tmp/nc-migration-pgloader.load"
+		echo ""
+		echo "  5. Then re-run this import script - it will skip the DB step"
+		echo "     and continue with the remaining steps."
+		echo ""
+		echo "Alternatively: if you can restore the MySQL dump into a temporary"
+		echo "MySQL Docker container, run pgloader against localhost instead."
+		echo ""
+		error "Stopping here. Complete the pgloader step above, then re-run."
+		exit 1
+		;;
 
-        sqlite3)
-            echo ""
-            error "SQLite -> PostgreSQL migration is not directly supported by this script."
-            error ""
-            error "Recommended path:"
-            error "  1. On the OLD HOST, convert SQLite to MySQL with occ:"
-            error "     sudo -u www-data php occ db:convert-type --all-apps mysql <user> <host> <db>"
-            error "  2. Re-run export.sh on the OLD HOST (it will now export MySQL)."
-            error "  3. Re-transfer the export bundle to this host."
-            error "  4. Re-run this script."
-            exit 1
-            ;;
+	sqlite3)
+		echo ""
+		error "SQLite -> PostgreSQL migration is not directly supported by this script."
+		error ""
+		error "Recommended path:"
+		error "  1. On the OLD HOST, convert SQLite to MySQL with occ:"
+		error "     sudo -u www-data php occ db:convert-type --all-apps mysql <user> <host> <db>"
+		error "  2. Re-run export.sh on the OLD HOST (it will now export MySQL)."
+		error "  3. Re-transfer the export bundle to this host."
+		error "  4. Re-run this script."
+		exit 1
+		;;
 
-        *)
-            error "Unknown database type in manifest: $M_DB_TYPE"
-            exit 1
-            ;;
-    esac
+	*)
+		error "Unknown database type in manifest: $M_DB_TYPE"
+		exit 1
+		;;
+	esac
 }
 
 # ── Data ownership fix ────────────────────────────────────────────────────────
 # Runs before the app container starts - uses host chown directly (UID 33 = www-data).
 fix_data_ownership() {
-    step "Fixing data directory ownership (NEW HOST)"
+	step "Fixing data directory ownership (NEW HOST)"
 
-    if [[ ! -d "$NEW_DATA_VOLUME" ]]; then
-        warn "Data volume directory does not exist: $NEW_DATA_VOLUME"
-        warn "If you rsynced files to a different path, fix ownership manually:"
-        warn "  sudo chown -R 33:33 /path/to/nextcloud/data"
-        return
-    fi
+	if [[ ! -d "$NEW_DATA_VOLUME" ]]; then
+		warn "Data volume directory does not exist: $NEW_DATA_VOLUME"
+		warn "If you rsynced files to a different path, fix ownership manually:"
+		warn "  sudo chown -R 33:33 /path/to/nextcloud/data"
+		return
+	fi
 
-    info "Setting ownership to www-data (UID 33:GID 33) on: $NEW_DATA_VOLUME"
-    runcmd sudo chown -R 33:33 "$NEW_DATA_VOLUME"
-    success "Data directory ownership fixed"
+	info "Setting ownership to www-data (UID 33:GID 33) on: $NEW_DATA_VOLUME"
+	runcmd sudo chown -R 33:33 "$NEW_DATA_VOLUME"
+	success "Data directory ownership fixed"
 }
 
 # ── Start app and wait for health ─────────────────────────────────────────────
 start_app_and_wait() {
-    step "Starting nextcloud_app (NEW HOST)"
+	step "Starting nextcloud_app (NEW HOST)"
 
-    runcmd docker compose -f nextcloud/docker-compose.yaml start nextcloud_app
+	runcmd docker compose -f nextcloud/docker-compose.yaml start nextcloud_app
 
-    if [[ "$DRY_RUN" == true ]]; then
-        info "[dry-run] Would wait for nextcloud_app to become healthy..."
-        return
-    fi
+	if [[ "$DRY_RUN" == true ]]; then
+		info "[dry-run] Would wait for nextcloud_app to become healthy..."
+		return
+	fi
 
-    info "Waiting for nextcloud_app to become healthy (up to 120s)..."
-    local waited=0
-    while [[ $waited -lt 120 ]]; do
-        local health
-        health=$(docker inspect --format='{{.State.Health.Status}}' nextcloud_app 2>/dev/null || true)
-        if [[ "$health" == "healthy" ]]; then
-            echo ""
-            success "nextcloud_app is healthy"
-            return
-        fi
-        sleep 5
-        waited=$((waited + 5))
-        echo -n "."
-    done
-    echo ""
-    warn "nextcloud_app did not become healthy within 120s. Continuing anyway."
-    warn "Check logs with: docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
+	info "Waiting for nextcloud_app to become healthy (up to 120s)..."
+	local waited=0
+	while [[ $waited -lt 120 ]]; do
+		local health
+		health=$(docker inspect --format='{{.State.Health.Status}}' nextcloud_app 2>/dev/null || true)
+		if [[ "$health" == "healthy" ]]; then
+			echo ""
+			success "nextcloud_app is healthy"
+			return
+		fi
+		sleep 5
+		waited=$((waited + 5))
+		echo -n "."
+	done
+	echo ""
+	warn "nextcloud_app did not become healthy within 120s. Continuing anyway."
+	warn "Check logs with: docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
 }
 
 # ── occ runner (new host) ─────────────────────────────────────────────────────
 new_occ() {
-    docker exec -u www-data nextcloud_app php occ "$@"
+	docker exec -u www-data nextcloud_app php occ "$@"
 }
 
 # ── Apply config values from old instance ─────────────────────────────────────
 apply_config_values() {
-    step "Applying configuration values from old instance (NEW HOST)"
+	step "Applying configuration values from old instance (NEW HOST)"
 
-    info "Setting instanceid..."
-    runcmd new_occ config:system:set instanceid --value="$M_INSTANCE_ID"
+	info "Setting instanceid..."
+	runcmd new_occ config:system:set instanceid --value="$M_INSTANCE_ID"
 
-    info "Setting passwordsalt..."
-    runcmd new_occ config:system:set passwordsalt --value="$M_PASSWORD_SALT"
+	info "Setting passwordsalt..."
+	runcmd new_occ config:system:set passwordsalt --value="$M_PASSWORD_SALT"
 
-    info "Setting secret..."
-    runcmd new_occ config:system:set secret --value="$M_SECRET"
+	info "Setting secret..."
+	runcmd new_occ config:system:set secret --value="$M_SECRET"
 
-    if [[ -n "$M_DATA_FINGERPRINT" ]]; then
-        info "Setting data-fingerprint..."
-        runcmd new_occ config:system:set data-fingerprint --value="$M_DATA_FINGERPRINT"
-    else
-        verbose "No data-fingerprint in manifest; will be generated by maintenance:data-fingerprint"
-    fi
+	if [[ -n "$M_DATA_FINGERPRINT" ]]; then
+		info "Setting data-fingerprint..."
+		runcmd new_occ config:system:set data-fingerprint --value="$M_DATA_FINGERPRINT"
+	else
+		verbose "No data-fingerprint in manifest; will be generated by maintenance:data-fingerprint"
+	fi
 
-    success "Configuration values applied"
+	success "Configuration values applied"
 }
 
 # ── Admin password handling ───────────────────────────────────────────────────
 handle_admin_password() {
-    step "Admin password (NEW HOST)"
+	step "Admin password (NEW HOST)"
 
-    echo ""
-    warn "The admin user's password is now the OLD system's admin password."
-    warn "The new stack's generated admin_password secret is NOT active for login."
-    echo ""
+	echo ""
+	warn "The admin user's password is now the OLD system's admin password."
+	warn "The new stack's generated admin_password secret is NOT active for login."
+	echo ""
 
-    local response
-    read -r -p "Reset admin password to this stack's generated password? [y/N] " response
-    echo ""
+	local response
+	read -r -p "Reset admin password to this stack's generated password? [y/N] " response
+	echo ""
 
-    if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
-        local new_pass
-        new_pass=$(cat nextcloud/secrets/admin_password)
-        info "Resetting admin password..."
-        if [[ "$DRY_RUN" == true ]]; then
-            echo -e "  ${YELLOW}[dry-run]${NC} Would reset admin password via occ user:resetpassword"
-        else
-            docker exec \
-                -e OC_PASS="$new_pass" \
-                -u www-data nextcloud_app \
-                php occ user:resetpassword --password-from-env admin
-        fi
-        success "Admin password reset to the value in nextcloud/secrets/admin_password"
-    else
-        info "Admin password left unchanged. Use the OLD system's admin password to log in."
-    fi
+	if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
+		local new_pass
+		new_pass=$(cat nextcloud/secrets/admin_password)
+		info "Resetting admin password..."
+		if [[ "$DRY_RUN" == true ]]; then
+			echo -e "  ${YELLOW}[dry-run]${NC} Would reset admin password via occ user:resetpassword"
+		else
+			docker exec \
+				-e OC_PASS="$new_pass" \
+				-u www-data nextcloud_app \
+				php occ user:resetpassword --password-from-env admin
+		fi
+		success "Admin password reset to the value in nextcloud/secrets/admin_password"
+	else
+		info "Admin password left unchanged. Use the OLD system's admin password to log in."
+	fi
 }
 
 # ── Post-import occ commands ──────────────────────────────────────────────────
 run_post_import_occ() {
-    step "Running post-import maintenance commands (NEW HOST)"
+	step "Running post-import maintenance commands (NEW HOST)"
 
-    info "Enabling maintenance mode..."
-    runcmd new_occ maintenance:mode --on
+	info "Enabling maintenance mode..."
+	runcmd new_occ maintenance:mode --on
 
-    info "Adding missing database indices..."
-    runcmd new_occ db:add-missing-indices
+	info "Adding missing database indices..."
+	runcmd new_occ db:add-missing-indices
 
-    info "Adding missing database columns..."
-    runcmd new_occ db:add-missing-columns
+	info "Adding missing database columns..."
+	runcmd new_occ db:add-missing-columns
 
-    info "Running maintenance:repair --include-expensive (this may take a while)..."
-    runcmd new_occ maintenance:repair --include-expensive
+	info "Running maintenance:repair --include-expensive (this may take a while)..."
+	runcmd new_occ maintenance:repair --include-expensive
 
-    info "Updating data-fingerprint (sync clients will re-sync cleanly)..."
-    runcmd new_occ maintenance:data-fingerprint
+	info "Updating data-fingerprint (sync clients will re-sync cleanly)..."
+	runcmd new_occ maintenance:data-fingerprint
 
-    info "Disabling maintenance mode..."
-    runcmd new_occ maintenance:mode --off
+	info "Disabling maintenance mode..."
+	runcmd new_occ maintenance:mode --off
 
-    success "Post-import maintenance complete"
+	success "Post-import maintenance complete"
 }
 
 # ── Post-migration checklist ──────────────────────────────────────────────────
 print_checklist() {
-    step "Post-migration checklist"
+	step "Post-migration checklist"
 
-    echo ""
-    echo -e "${BOLD}Complete these steps manually:${NC}"
-    echo ""
-    echo "  1. OLD HOST - Disable maintenance mode so users get a clear error"
-    echo "     if they hit the old server address (not a confusing maintenance page):"
-    echo "       docker exec -u www-data nextcloud_app php occ maintenance:mode --off"
-    echo ""
-    echo "  2. DNS - Update your Nextcloud domain's DNS record to point to"
-    echo "     the Cloudflare tunnel of the NEW host."
-    echo "     Find the tunnel connector hostname in the Cloudflare dashboard"
-    echo "     under Zero Trust > Networks > Tunnels."
-    echo ""
-    echo "  3. NEW HOST - Monitor logs after DNS cutover:"
-    echo "       docker compose -f nextcloud/docker-compose.yaml logs -f nextcloud_app"
-    echo ""
-    echo "  4. Cloudflare - Revoke the old host's tunnel token in the Cloudflare"
-    echo "     dashboard once you are satisfied the new host is working."
-    echo ""
-    echo "  5. External storage - If the old instance had external storage configured,"
-    echo "     reconfigure those connections on the new instance:"
-    echo "     Settings > Administration > External Storages"
-    echo ""
-    echo "  6. OLD HOST - Decommission (power off / delete the VM) once satisfied."
-    echo ""
-    echo -e "  ${YELLOW}Optional:${NC} If files appear missing after login, run a file scan:"
-    echo "       docker exec -u www-data nextcloud_app php occ files:scan --all"
-    echo "     (This is slow on large instances - only run if needed.)"
-    echo ""
+	echo ""
+	echo -e "${BOLD}Complete these steps manually:${NC}"
+	echo ""
+	echo "  1. OLD HOST - Disable maintenance mode so users get a clear error"
+	echo "     if they hit the old server address (not a confusing maintenance page):"
+	echo "       docker exec -u www-data nextcloud_app php occ maintenance:mode --off"
+	echo ""
+	echo "  2. DNS - Update your Nextcloud domain's DNS record to point to"
+	echo "     the Cloudflare tunnel of the NEW host."
+	echo "     Find the tunnel connector hostname in the Cloudflare dashboard"
+	echo "     under Zero Trust > Networks > Tunnels."
+	echo ""
+	echo "  3. NEW HOST - Monitor logs after DNS cutover:"
+	echo "       docker compose -f nextcloud/docker-compose.yaml logs -f nextcloud_app"
+	echo ""
+	echo "  4. Cloudflare - Revoke the old host's tunnel token in the Cloudflare"
+	echo "     dashboard once you are satisfied the new host is working."
+	echo ""
+	echo "  5. External storage - If the old instance had external storage configured,"
+	echo "     reconfigure those connections on the new instance:"
+	echo "     Settings > Administration > External Storages"
+	echo ""
+	echo "  6. OLD HOST - Decommission (power off / delete the VM) once satisfied."
+	echo ""
+	echo -e "  ${YELLOW}Optional:${NC} If files appear missing after login, run a file scan:"
+	echo "       docker exec -u www-data nextcloud_app php occ files:scan --all"
+	echo "     (This is slow on large instances - only run if needed.)"
+	echo ""
 }
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 cleanup_prompt() {
-    step "Cleanup (NEW HOST)"
+	step "Cleanup (NEW HOST)"
 
-    echo ""
-    warn "Please verify the migration before cleaning up:"
-    warn "  - Log in to Nextcloud with the admin account"
-    warn "  - Confirm user files are visible"
-    warn "  - Check Settings > Administration > Overview for any warnings"
-    echo ""
+	echo ""
+	warn "Please verify the migration before cleaning up:"
+	warn "  - Log in to Nextcloud with the admin account"
+	warn "  - Confirm user files are visible"
+	warn "  - Check Settings > Administration > Overview for any warnings"
+	echo ""
 
-    local response
-    read -r -p "Migration looks correct? Remove the export bundle? [y/N] " response
-    echo ""
+	local response
+	read -r -p "Migration looks correct? Remove the export bundle? [y/N] " response
+	echo ""
 
-    if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
-        if [[ -d "$EXPORT_DIR" ]]; then
-            runcmd rm -rf "$EXPORT_DIR"
-            success "Removed: $EXPORT_DIR"
-        fi
-        success "Cleanup complete"
-    else
-        info "Export bundle kept at: $EXPORT_DIR"
-        info "Remove it manually when you are satisfied with the migration."
-    fi
+	if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
+		if [[ -d "$EXPORT_DIR" ]]; then
+			runcmd rm -rf "$EXPORT_DIR"
+			success "Removed: $EXPORT_DIR"
+		fi
+		success "Cleanup complete"
+	else
+		info "Export bundle kept at: $EXPORT_DIR"
+		info "Remove it manually when you are satisfied with the migration."
+	fi
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
-    echo ""
-    echo -e "${BOLD}Nextcloud Migration - Import Script${NC}"
-    echo -e "${BOLD}Run on the NEW HOST from the repository root${NC}"
-    if [[ "$DRY_RUN" == true ]]; then
-        echo -e "${YELLOW}DRY-RUN MODE: No changes will be made${NC}"
-    fi
-    echo ""
+	echo ""
+	echo -e "${BOLD}Nextcloud Migration - Import Script${NC}"
+	echo -e "${BOLD}Run on the NEW HOST from the repository root${NC}"
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "${YELLOW}DRY-RUN MODE: No changes will be made${NC}"
+	fi
+	echo ""
 
-    check_prerequisites
-    read_manifest
-    read_new_credentials
-    check_version
-    check_data_directory
-    import_database
-    fix_data_ownership
-    start_app_and_wait
-    apply_config_values
-    handle_admin_password
-    run_post_import_occ
-    print_checklist
-    cleanup_prompt
+	check_prerequisites
+	read_manifest
+	read_new_credentials
+	check_version
+	check_data_directory
+	import_database
+	fix_data_ownership
+	start_app_and_wait
+	apply_config_values
+	handle_admin_password
+	run_post_import_occ
+	print_checklist
+	cleanup_prompt
 
-    echo ""
-    success "Migration complete."
+	echo ""
+	success "Migration complete."
 }
 
 main

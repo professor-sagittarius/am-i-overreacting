@@ -18,14 +18,14 @@ usage() {
 TIER="${1:-all}"
 
 case "$TIER" in
-	tier1) "$BATS" "$TESTS_DIR/tier1-static.bats" ;;
-	tier2) "$BATS" "$TESTS_DIR/tier2-stacks.bats" ;;
-	tier3) "$BATS" "$TESTS_DIR/tier3-migration.bats" ;;
-	all)
-		"$BATS" \
-			"$TESTS_DIR/tier1-static.bats" \
-			"$TESTS_DIR/tier2-stacks.bats" \
-			"$TESTS_DIR/tier3-migration.bats"
-		;;
-	*) usage ;;
+tier1) "$BATS" "$TESTS_DIR/tier1-static.bats" ;;
+tier2) "$BATS" "$TESTS_DIR/tier2-stacks.bats" ;;
+tier3) "$BATS" "$TESTS_DIR/tier3-migration.bats" ;;
+all)
+	"$BATS" \
+		"$TESTS_DIR/tier1-static.bats" \
+		"$TESTS_DIR/tier2-stacks.bats" \
+		"$TESTS_DIR/tier3-migration.bats"
+	;;
+*) usage ;;
 esac
