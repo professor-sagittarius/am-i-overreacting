@@ -38,6 +38,18 @@ teardown() {
 	docker compose -f "$MOCK_AIO_COMPOSE" up -d
 	wait_healthy "nextcloud-aio-nextcloud" 300
 
+	# The healthcheck passes before Nextcloud finishes installation.
+	# Poll status.php until installed:true (up to 5 more minutes).
+	local waited=0
+	while [[ $waited -lt 300 ]]; do
+		if docker exec nextcloud-aio-nextcloud \
+			curl -sf http://localhost/status.php 2>/dev/null | grep -q '"installed":true'; then
+			break
+		fi
+		sleep 10
+		waited=$((waited + 10))
+	done
+
 	# ── Step 2: Seed test user ────────────────────────────────────────────────
 	docker exec \
 		-e OC_PASS="migration-user-pass" \
