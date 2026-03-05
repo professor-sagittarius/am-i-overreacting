@@ -603,6 +603,17 @@ Tier 3 keeps all test credentials in `tests/tmp/` (created and removed by the te
 
 **Tier 2 and 3 must not be run on a production machine.** They start containers using the same names as the production stacks (`nextcloud_app`, `gitea_app`, etc.), tear down stacks with `docker compose down -v` (which deletes volumes), and bind the same ports. `run-tests.sh` prompts for confirmation before running either tier.
 
+### Testing Limitations
+
+The test suite does not currently cover:
+
+- **Large database migrations**: Performance testing with multi-gigabyte databases
+- **Encryption-enabled migrations**: The export script blocks migration when server-side encryption is enabled (you must follow Nextcloud's encryption migration guide first)
+- **Concurrent access**: Behavior when users attempt to connect during migration
+- **Partial migration recovery**: What happens if import fails mid-way through
+
+For these scenarios, test manually in a staging environment before production migration.
+
 ## Notes
 
 - **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:
