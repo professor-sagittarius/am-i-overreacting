@@ -22,6 +22,7 @@ verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 # ── Flags ─────────────────────────────────────────────────────────────────────
 DRY_RUN=false
 VERBOSE=false
+NON_INTERACTIVE=false
 EXPORT_DIR="nc-migration-export"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ Options:
   --dry-run           Preview actions without executing
   -v, --verbose       Show detailed output
   --export-dir DIR    Location of export bundle (default: nc-migration-export)
+  --non-interactive   Skip interactive prompts (answers 'n' to all)
   -h, --help          Show this help
 
 EOF
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
 	case $1 in
 	--dry-run) DRY_RUN=true ;;
 	-v | --verbose) VERBOSE=true ;;
+	--non-interactive) NON_INTERACTIVE=true ;;
 	--export-dir)
 		EXPORT_DIR="$2"
 		shift
@@ -425,7 +428,10 @@ fix_data_ownership() {
 	fi
 
 	info "Setting ownership to www-data (UID 33:GID 33) on: $NEW_DATA_VOLUME"
-	runcmd sudo chown -R 33:33 "$NEW_DATA_VOLUME"
+	runcmd docker run --rm \
+		-v "${NEW_DATA_VOLUME}:/data" \
+		alpine \
+		chown -R 33:33 /data
 	success "Data directory ownership fixed"
 }
 
@@ -496,9 +502,13 @@ handle_admin_password() {
 	warn "The new stack's generated admin_password secret is NOT active for login."
 	echo ""
 
-	local response
-	read -r -p "Reset admin password to this stack's generated password? [y/N] " response
-	echo ""
+	local response="n"
+	if [[ "$NON_INTERACTIVE" != true ]]; then
+		read -r -p "Reset admin password to this stack's generated password? [y/N] " response
+		echo ""
+	else
+		info "[non-interactive] Skipping admin password reset."
+	fi
 
 	if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
 		local new_pass
@@ -588,9 +598,13 @@ cleanup_prompt() {
 	warn "  - Check Settings > Administration > Overview for any warnings"
 	echo ""
 
-	local response
-	read -r -p "Migration looks correct? Remove the export bundle? [y/N] " response
-	echo ""
+	local response="n"
+	if [[ "$NON_INTERACTIVE" != true ]]; then
+		read -r -p "Migration looks correct? Remove the export bundle? [y/N] " response
+		echo ""
+	else
+		info "[non-interactive] Keeping export bundle (non-interactive mode)."
+	fi
 
 	if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
 		if [[ -d "$EXPORT_DIR" ]]; then
