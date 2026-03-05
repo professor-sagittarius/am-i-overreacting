@@ -268,12 +268,12 @@ find_db_container() {
 
 _pg_dump_container() {
 	local container="$1" user="$2" db="$3" pass="$4" outfile="$5"
-	docker exec -e PGPASSWORD="$pass" "$container" pg_dump -U "$user" -Fc "$db" >"$outfile"
+	docker exec -e PGPASSWORD="$pass" "$container" pg_dump -U "$user" --no-owner --no-acl "$db" >"$outfile"
 }
 
 _pg_dump_bare() {
 	local host="$1" user="$2" db="$3" pass="$4" outfile="$5"
-	PGPASSWORD="$pass" pg_dump -h "$host" -U "$user" -Fc "$db" >"$outfile"
+	PGPASSWORD="$pass" pg_dump -h "$host" -U "$user" --no-owner --no-acl "$db" >"$outfile"
 }
 
 _mysql_dump_container() {
@@ -295,7 +295,7 @@ export_database() {
 
 	case "$db_type" in
 	pgsql)
-		local dump_file="$EXPORT_DIR/db-dump.pgdump"
+		local dump_file="$EXPORT_DIR/db-dump.sql"
 		info "Exporting PostgreSQL database '$db_name'..."
 		if [[ "$DRY_RUN" == true ]]; then
 			echo -e "  ${YELLOW}[dry-run]${NC} Would dump PostgreSQL '$db_name' to: $dump_file"

@@ -62,7 +62,7 @@ teardown() {
 	assert_success
 
 	assert [ -f "$EXPORT_BUNDLE/manifest.json" ]
-	assert [ -f "$EXPORT_BUNDLE/db-dump.pgdump" ]
+	assert [ -f "$EXPORT_BUNDLE/db-dump.sql" ]
 
 	run jq -r '.instanceid' "$EXPORT_BUNDLE/manifest.json"
 	assert_success
@@ -74,6 +74,13 @@ teardown() {
 	echo "new-pg-pass-test" >"$SECRETS_DIR/postgres_password"
 	echo "new-admin-pass-test" >"$SECRETS_DIR/admin_password"
 	echo "new-redis-pass-test" >"$SECRETS_DIR/redis_password"
+
+	# Copy hooks to temp dir so --project-directory resolves ./hooks correctly
+	mkdir -p "$TMPDIR/hooks/post-installation" "$TMPDIR/hooks/before-starting"
+	cp "$REPO_ROOT/nextcloud/hooks/post-installation/post-installation.sh" \
+		"$TMPDIR/hooks/post-installation/"
+	cp "$REPO_ROOT/nextcloud/hooks/before-starting/before-startup.sh" \
+		"$TMPDIR/hooks/before-starting/"
 
 	ensure_network "nextcloud_proxy_network"
 

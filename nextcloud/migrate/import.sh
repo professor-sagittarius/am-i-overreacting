@@ -23,6 +23,7 @@ verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 DRY_RUN=false
 VERBOSE=false
 NON_INTERACTIVE=false
+SKIP_PERMISSION_GRANTS=false
 EXPORT_DIR="nc-migration-export"
 ENV_FILE="nextcloud/.env"
 SECRETS_DIR="nextcloud/secrets"
@@ -43,6 +44,8 @@ Options:
   --env-file FILE     Path to the stack .env file (default: nextcloud/.env)
   --secrets-dir DIR   Directory containing postgres_password and admin_password (default: nextcloud/secrets)
   --compose-file FILE Path to the stack docker-compose.yaml (default: nextcloud/docker-compose.yaml)
+  --skip-permission-grants
+                      Skip database ownership reassignment (use if you've manually fixed permissions)
   -h, --help          Show this help
 
 EOF
@@ -53,6 +56,7 @@ while [[ $# -gt 0 ]]; do
 	--dry-run) DRY_RUN=true ;;
 	-v | --verbose) VERBOSE=true ;;
 	--non-interactive) NON_INTERACTIVE=true ;;
+	--skip-permission-grants) SKIP_PERMISSION_GRANTS=true ;;
 	--export-dir)
 		EXPORT_DIR="$2"
 		shift
@@ -156,7 +160,7 @@ check_prerequisites() {
 		exit 1
 	fi
 
-	if ! docker compose -f "$COMPOSE_FILE" ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
+	if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
 		error "nextcloud_postgres is not running. Start the stack first:"
 		error "  docker compose -f $COMPOSE_FILE up -d"
 		error "Verify the fresh install works (log in with the generated admin password),"
@@ -316,13 +320,13 @@ check_data_directory() {
 
 # ── Database import ───────────────────────────────────────────────────────────
 
-# pg_restore via stdin - avoids any quoting issues with secrets in strings
+# psql restore via stdin - matches Nextcloud official restore documentation
 _pg_restore() {
 	local dump_file="$1" user="$2" db="$3" pass="$4"
 	docker exec -i \
 		-e PGPASSWORD="$pass" \
 		nextcloud_postgres \
-		pg_restore --no-owner --no-acl -U "$user" -d "$db" \
+		psql -U "$user" -d "$db" \
 		<"$dump_file"
 }
 
@@ -334,19 +338,44 @@ _psql() {
 		psql -U "$user" -d "$db" -c "$sql"
 }
 
+get_nextcloud_db_credentials() {
+	local dbuser dbpass
+	dbuser=$(docker exec -u www-data nextcloud_app php occ config:system:get dbuser 2>/dev/null)
+	dbpass=$(docker exec -u www-data nextcloud_app php occ config:system:get dbpassword 2>/dev/null)
+	if [[ -n "$dbuser" && -n "$dbpass" ]]; then
+		echo "$dbuser:$dbpass"
+		return 0
+	else
+		return 1
+	fi
+}
+
 import_database() {
 	step "Importing database (NEW HOST)"
 
 	case "$M_DB_TYPE" in
 	pgsql)
-		local dump_file="$EXPORT_DIR/db-dump.pgdump"
+		local dump_file="$EXPORT_DIR/db-dump.sql"
 		if [[ ! -f "$dump_file" ]]; then
 			error "PostgreSQL dump not found: $dump_file"
 			exit 1
 		fi
 
+		# Get the database credentials Nextcloud is configured to use BEFORE stopping the app
+		info "Reading Nextcloud database configuration..."
+		local nc_dbuser nc_dbpass nc_dbcreds
+		nc_dbcreds=$(get_nextcloud_db_credentials)
+		if [[ -z "$nc_dbcreds" ]]; then
+			error "Could not read database credentials from Nextcloud config"
+			error "Ensure nextcloud_app is running and configured"
+			exit 1
+		fi
+
+		IFS=':' read -r nc_dbuser nc_dbpass <<<"$nc_dbcreds"
+		verbose "Nextcloud configured to use database user: $nc_dbuser"
+
 		info "Stopping nextcloud_app (keeping nextcloud_postgres running)..."
-		runcmd docker compose -f "$COMPOSE_FILE" stop nextcloud_app
+		runcmd docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop nextcloud_app
 
 		info "Dropping and recreating database '$NEW_PG_DB'..."
 		if [[ "$DRY_RUN" == true ]]; then
@@ -355,14 +384,26 @@ import_database() {
 			_psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
 				"DROP DATABASE IF EXISTS \"${NEW_PG_DB}\";"
 			_psql "$NEW_PG_USER" "$NEW_PG_PASS" "postgres" \
-				"CREATE DATABASE \"${NEW_PG_DB}\";"
+				"CREATE DATABASE \"${NEW_PG_DB}\" OWNER \"$nc_dbuser\";"
 		fi
 
-		info "Restoring database dump (this may take a while)..."
+		info "Restoring database dump as '$nc_dbuser' (this may take a while)..."
 		if [[ "$DRY_RUN" == true ]]; then
-			echo -e "  ${YELLOW}[dry-run]${NC} Would restore: $dump_file -> $NEW_PG_DB"
+			echo -e "  ${YELLOW}[dry-run]${NC} Would restore: $dump_file -> $NEW_PG_DB (as user $nc_dbuser)"
 		else
-			_pg_restore "$dump_file" "$NEW_PG_USER" "$NEW_PG_DB" "$NEW_PG_PASS"
+			_pg_restore "$dump_file" "$nc_dbuser" "$NEW_PG_DB" "$nc_dbpass"
+
+			# Verify the restore succeeded by checking if the Nextcloud user can access tables
+			if docker exec nextcloud_postgres psql -U "$nc_dbuser" -d "$NEW_PG_DB" \
+				-c "SELECT COUNT(*) FROM oc_appconfig;" >/dev/null 2>&1; then
+				success "Database restored and verified (tables owned by '$nc_dbuser')"
+			else
+				error "Database restore verification failed"
+				error "User '$nc_dbuser' cannot access oc_appconfig table"
+				_psql "$NEW_PG_USER" "$NEW_PG_PASS" "$NEW_PG_DB" \
+					"SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'public' LIMIT 5;" 2>&1
+				exit 1
+			fi
 		fi
 
 		success "PostgreSQL database restored"
@@ -463,30 +504,32 @@ fix_data_ownership() {
 start_app_and_wait() {
 	step "Starting nextcloud_app (NEW HOST)"
 
-	runcmd docker compose -f "$COMPOSE_FILE" start nextcloud_app
+	runcmd docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" start nextcloud_app
 
 	if [[ "$DRY_RUN" == true ]]; then
-		info "[dry-run] Would wait for nextcloud_app to become healthy..."
+		info "[dry-run] Would wait for nextcloud_app to become ready..."
 		return
 	fi
 
-	info "Waiting for nextcloud_app to become healthy (up to 120s)..."
+	# Poll occ status directly rather than the Docker healthcheck.
+	# The healthcheck has a start_period of 600 s (it probes Apache), but occ
+	# becomes usable as soon as the entrypoint hooks finish - well before that.
+	info "Waiting for nextcloud_app to become ready (up to 600s)..."
 	local waited=0
-	while [[ $waited -lt 120 ]]; do
-		local health
-		health=$(docker inspect --format='{{.State.Health.Status}}' nextcloud_app 2>/dev/null || true)
-		if [[ "$health" == "healthy" ]]; then
+	while [[ $waited -lt 600 ]]; do
+		if docker exec -u www-data nextcloud_app php occ status &>/dev/null; then
 			echo ""
-			success "nextcloud_app is healthy"
+			success "nextcloud_app is ready"
 			return
 		fi
-		sleep 5
-		waited=$((waited + 5))
+		sleep 10
+		waited=$((waited + 10))
 		echo -n "."
 	done
 	echo ""
-	warn "nextcloud_app did not become healthy within 120s. Continuing anyway."
+	warn "nextcloud_app did not become ready within 600s."
 	warn "Check logs with: docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
+	warn "Attempting to continue - subsequent occ commands may fail."
 }
 
 # ── occ runner (new host) ─────────────────────────────────────────────────────
