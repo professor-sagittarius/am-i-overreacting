@@ -18,11 +18,17 @@ setup() {
 
 	MOCK_AIO_COMPOSE="$REPO_ROOT/tests/fixtures/mock-aio/docker-compose.yaml"
 	NEW_STACK_COMPOSE="$REPO_ROOT/nextcloud/docker-compose.yaml"
+
+	# Explicit project name so import.sh's internal compose calls (stop/start)
+	# find the same containers regardless of working directory.
+	export COMPOSE_PROJECT_NAME="nextcloud-tier3"
 }
 
 teardown() {
 	docker compose -f "$MOCK_AIO_COMPOSE" down -v --remove-orphans 2>/dev/null || true
-	docker compose -f "$NEW_STACK_COMPOSE" --env-file "$ENV_FILE" \
+	docker compose -f "$NEW_STACK_COMPOSE" \
+		--project-directory "$TMPDIR" \
+		--env-file "$ENV_FILE" \
 		down -v --remove-orphans 2>/dev/null || true
 	remove_network "nextcloud_proxy_network"
 
@@ -76,8 +82,12 @@ teardown() {
 	docker_chown "/tmp/nc-test-volumes/data" "33:33"
 
 	# ── Step 5: Start new stack and wait for it to initialize ─────────────────
+	# --project-directory makes ./secrets/... resolve to $TMPDIR/secrets/.
+	# COMPOSE_PROJECT_NAME (set in setup) ensures import.sh finds these containers.
 	# start_period for nextcloud_app is 600s; allow up to 15 minutes.
-	docker compose -f "$NEW_STACK_COMPOSE" --env-file "$ENV_FILE" up -d
+	docker compose -f "$NEW_STACK_COMPOSE" \
+		--project-directory "$TMPDIR" \
+		--env-file "$ENV_FILE" up -d
 	wait_healthy "nextcloud_postgres" 120
 	wait_healthy "nextcloud_redis" 120
 	wait_healthy "nextcloud_app" 900
