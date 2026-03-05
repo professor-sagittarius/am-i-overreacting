@@ -241,3 +241,27 @@ _check_env_completeness() {
 		"$REPO_ROOT/backup/docker-compose.yaml" \
 		"$REPO_ROOT/backup/example.env"
 }
+
+# -- Database dump format validation -------------------------------------------
+
+@test "export.sh: PostgreSQL dump uses --no-owner --no-acl flags" {
+	# Verify the dump command includes ownership-stripping flags in both variants
+	run grep -E "pg_dump.*--no-owner.*--no-acl" "$REPO_ROOT/nextcloud/migrate/export.sh"
+	assert_success
+}
+
+@test "import.sh: restore uses psql for plain SQL format" {
+	# Verify import uses psql (which works with plain SQL dumps)
+	run grep -E "psql.*-U.*-d" "$REPO_ROOT/nextcloud/migrate/import.sh"
+	assert_success
+}
+
+@test "import.sh: dump file extension matches format (.sql not .pgdump)" {
+	# Verify import.sh looks for .sql extension
+	run grep -E 'db-dump\.sql' "$REPO_ROOT/nextcloud/migrate/import.sh"
+	assert_success
+
+	# Verify export.sh creates .sql extension
+	run grep -E 'db-dump\.sql' "$REPO_ROOT/nextcloud/migrate/export.sh"
+	assert_success
+}
