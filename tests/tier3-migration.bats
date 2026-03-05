@@ -85,9 +85,12 @@ teardown() {
 	# --project-directory makes ./secrets/... resolve to $TMPDIR/secrets/.
 	# COMPOSE_PROJECT_NAME (set in setup) ensures import.sh finds these containers.
 	# start_period for nextcloud_app is 600s; allow up to 15 minutes.
+	# Start only core services - notify_push has no profile gate but mounts
+	# a script from ./scripts/ which doesn't exist in the temp project dir.
 	docker compose -f "$NEW_STACK_COMPOSE" \
 		--project-directory "$TMPDIR" \
-		--env-file "$ENV_FILE" up -d
+		--env-file "$ENV_FILE" up -d \
+		nextcloud_postgres nextcloud_redis nextcloud_app
 	wait_healthy "nextcloud_postgres" 120
 	wait_healthy "nextcloud_redis" 120
 	wait_healthy "nextcloud_app" 900
