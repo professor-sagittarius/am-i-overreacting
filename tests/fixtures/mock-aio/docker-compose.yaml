@@ -3,7 +3,7 @@
 # Image version MUST match the version in nextcloud/docker-compose.yaml.
 services:
   nextcloud-aio-database:
-    image: postgres:17-alpine
+    image: postgres:17.8-alpine3.23
     container_name: nextcloud-aio-database
     environment:
       POSTGRES_USER: oc_nextcloud
