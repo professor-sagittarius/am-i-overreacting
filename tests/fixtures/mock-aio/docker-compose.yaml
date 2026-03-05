@@ -5,10 +5,12 @@ services:
   nextcloud-aio-database:
     image: postgres:17.8-alpine3.23
     container_name: nextcloud-aio-database
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: oc_nextcloud
-      POSTGRES_DB: nextcloud_db
-      POSTGRES_PASSWORD: aio-pg-pass-test
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - aio_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,13 +34,15 @@ services:
         condition: service_healthy
       nextcloud-aio-nextcloud-init:
         condition: service_completed_successfully
+    env_file:
+      - .env
     environment:
       POSTGRES_HOST: nextcloud-aio-database
-      POSTGRES_USER: oc_nextcloud
-      POSTGRES_DB: nextcloud_db
-      POSTGRES_PASSWORD: aio-pg-pass-test
-      NEXTCLOUD_ADMIN_USER: admin
-      NEXTCLOUD_ADMIN_PASSWORD: aio-admin-pass-test
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       NEXTCLOUD_DATA_DIR: /mnt/ncdata
     volumes:
       - aio_app_data:/var/www/html
