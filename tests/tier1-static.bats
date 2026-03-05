@@ -265,3 +265,19 @@ _check_env_completeness() {
 	run grep -E 'db-dump\.sql' "$REPO_ROOT/nextcloud/migrate/export.sh"
 	assert_success
 }
+
+# -- Version synchronization ----------------------------------------------------
+
+@test "mock AIO: Nextcloud version matches production stack" {
+	local prod_version mock_version
+
+	# Extract version from production stack (first nextcloud image)
+	prod_version=$(grep "image: nextcloud:" "$REPO_ROOT/nextcloud/docker-compose.yaml" | head -1 | sed -E 's/.*nextcloud:([0-9.]+).*/\1/')
+
+	# Extract version from mock AIO
+	mock_version=$(grep "image: nextcloud:" "$REPO_ROOT/tests/fixtures/mock-aio/docker-compose.yaml" | sed -E 's/.*nextcloud:([0-9.]+).*/\1/')
+
+	assert [ -n "$prod_version" ]
+	assert [ -n "$mock_version" ]
+	assert [ "$prod_version" == "$mock_version" ]
+}
