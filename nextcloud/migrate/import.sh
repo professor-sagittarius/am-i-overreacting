@@ -399,9 +399,20 @@ import_database() {
 				success "Database restored and verified (tables owned by '$nc_dbuser')"
 			else
 				error "Database restore verification failed"
-				error "User '$nc_dbuser' cannot access oc_appconfig table"
+				# Check if this is a permissions issue or a missing table issue
+				if docker exec nextcloud_postgres psql -U "$nc_dbuser" -d "$NEW_PG_DB" \
+					-c "\dt oc_appconfig" 2>&1 | grep -q "oc_appconfig"; then
+					error "Table oc_appconfig exists but user '$nc_dbuser' lacks SELECT permission"
+					error "This suggests ownership was not reassigned correctly"
+				else
+					error "Table oc_appconfig not found - database restore may have failed"
+					error "Check if the dump file is empty or corrupted:"
+					error "  wc -l $dump_file"
+				fi
+				error ""
+				error "Debug information:"
 				_psql "$NEW_PG_USER" "$NEW_PG_PASS" "$NEW_PG_DB" \
-					"SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'public' LIMIT 5;" 2>&1
+					"SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename LIMIT 10;" 2>&1 || true
 				exit 1
 			fi
 		fi
