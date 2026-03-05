@@ -601,6 +601,8 @@ bash tests/run-tests.sh all     # all three tiers
 
 Tier 3 keeps all test credentials in `tests/tmp/` (created and removed by the test). It does not write to `nextcloud/.env` or `nextcloud/secrets/`.
 
+**Tier 2 and 3 must not be run on a production machine.** They start containers using the same names as the production stacks (`nextcloud_app`, `gitea_app`, etc.), tear down stacks with `docker compose down -v` (which deletes volumes), and bind the same ports. `run-tests.sh` prompts for confirmation before running either tier.
+
 ## Notes
 
 - **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:

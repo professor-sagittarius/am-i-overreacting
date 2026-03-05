@@ -5,6 +5,11 @@
 #
 # Volume directories are created at fixed paths under /tmp so teardown can
 # reliably remove them. docker_chown sets ownership without requiring sudo.
+#
+# Test secrets are written inside each stack's /tmp volume directory.
+# Docker Compose's --project-directory flag makes relative secret paths
+# (./secrets/...) in compose files resolve there, so production secret
+# files are never read or written.
 
 setup() {
 	load 'lib/bats-support/load'
@@ -42,20 +47,22 @@ setup_nextcloud() {
 	docker_chown "${_NC_VOL}/app" "33:33"
 	docker_chown "${_NC_VOL}/data" "33:33"
 
-	mkdir -p "$REPO_ROOT/nextcloud/secrets"
-	echo "test-pg-pass" >"$REPO_ROOT/nextcloud/secrets/postgres_password"
-	echo "test-admin-pass" >"$REPO_ROOT/nextcloud/secrets/admin_password"
-	echo "test-redis-pass" >"$REPO_ROOT/nextcloud/secrets/redis_password"
+	# Secrets go in the temp vol dir. --project-directory below makes Docker
+	# Compose resolve ./secrets/... relative to _NC_VOL, not nextcloud/.
+	mkdir -p "${_NC_VOL}/secrets"
+	echo "test-pg-pass" >"${_NC_VOL}/secrets/postgres_password"
+	echo "test-admin-pass" >"${_NC_VOL}/secrets/admin_password"
+	echo "test-redis-pass" >"${_NC_VOL}/secrets/redis_password"
 
 	ensure_network "nextcloud_proxy_network"
 }
 
 teardown_nextcloud() {
-	stack_down "$REPO_ROOT/nextcloud/docker-compose.yaml" "$STUB_DIR/nextcloud.env"
+	docker compose -f "$REPO_ROOT/nextcloud/docker-compose.yaml" \
+		--project-directory "${_NC_VOL}" \
+		--env-file "$STUB_DIR/nextcloud.env" \
+		down -v --remove-orphans 2>/dev/null || true
 	remove_network "nextcloud_proxy_network"
-	rm -f "$REPO_ROOT/nextcloud/secrets/postgres_password" \
-		"$REPO_ROOT/nextcloud/secrets/admin_password" \
-		"$REPO_ROOT/nextcloud/secrets/redis_password"
 	docker_rmdir "${_NC_VOL}"
 }
 
@@ -64,6 +71,7 @@ teardown_nextcloud() {
 
 	# start_period for nextcloud_app is 600s; allow up to 15 minutes.
 	docker compose -f "$REPO_ROOT/nextcloud/docker-compose.yaml" \
+		--project-directory "${_NC_VOL}" \
 		--env-file "$STUB_DIR/nextcloud.env" up -d
 
 	wait_healthy "nextcloud_postgres" 120
@@ -72,7 +80,7 @@ teardown_nextcloud() {
 
 	run curl -sf http://localhost:8888/status.php
 	assert_success
-	assert_output --partial '"installed":true'
+	assert_output --partial '\"installed\":true'
 
 	teardown_nextcloud
 }
@@ -91,16 +99,18 @@ setup_gitea() {
 
 	mkdir -p "${_GITEA_VOL}"/{gitea,gitea_db}
 
-	mkdir -p "$REPO_ROOT/gitea/secrets"
-	echo "test-gitea-pg-pass" >"$REPO_ROOT/gitea/secrets/postgres_password"
+	mkdir -p "${_GITEA_VOL}/secrets"
+	echo "test-gitea-pg-pass" >"${_GITEA_VOL}/secrets/postgres_password"
 
 	ensure_network "gitea_proxy_network"
 }
 
 teardown_gitea() {
-	stack_down "$REPO_ROOT/gitea/docker-compose.yaml" "$STUB_DIR/gitea.env"
+	docker compose -f "$REPO_ROOT/gitea/docker-compose.yaml" \
+		--project-directory "${_GITEA_VOL}" \
+		--env-file "$STUB_DIR/gitea.env" \
+		down -v --remove-orphans 2>/dev/null || true
 	remove_network "gitea_proxy_network"
-	rm -f "$REPO_ROOT/gitea/secrets/postgres_password"
 	docker_rmdir "${_GITEA_VOL}"
 }
 
@@ -108,6 +118,7 @@ teardown_gitea() {
 	setup_gitea
 	# gitea_app has no Docker healthcheck; wait for postgres then poll HTTP.
 	docker compose -f "$REPO_ROOT/gitea/docker-compose.yaml" \
+		--project-directory "${_GITEA_VOL}" \
 		--env-file "$STUB_DIR/gitea.env" up -d
 	wait_healthy "gitea_postgres" 120
 
@@ -128,19 +139,22 @@ _VW_VOL=/tmp/tier2-vaultwarden
 	echo "VAULTWARDEN_DATA_VOLUME=${_VW_VOL}/data" >>"$STUB_DIR/vaultwarden.env"
 	mkdir -p "${_VW_VOL}/data"
 
-	mkdir -p "$REPO_ROOT/vaultwarden/secrets"
-	echo "test-vw-token" >"$REPO_ROOT/vaultwarden/secrets/admin_token"
+	mkdir -p "${_VW_VOL}/secrets"
+	echo "test-vw-token" >"${_VW_VOL}/secrets/admin_token"
 
 	ensure_network "vaultwarden_proxy_network"
 
 	# Vaultwarden has no host port mapping; verify via Docker healthcheck.
-	stack_up "$REPO_ROOT/vaultwarden/docker-compose.yaml" \
-		"$STUB_DIR/vaultwarden.env" \
-		vaultwarden
+	docker compose -f "$REPO_ROOT/vaultwarden/docker-compose.yaml" \
+		--project-directory "${_VW_VOL}" \
+		--env-file "$STUB_DIR/vaultwarden.env" up -d
+	wait_healthy "vaultwarden" 120
 
-	stack_down "$REPO_ROOT/vaultwarden/docker-compose.yaml" "$STUB_DIR/vaultwarden.env"
+	docker compose -f "$REPO_ROOT/vaultwarden/docker-compose.yaml" \
+		--project-directory "${_VW_VOL}" \
+		--env-file "$STUB_DIR/vaultwarden.env" \
+		down -v --remove-orphans 2>/dev/null || true
 	remove_network "vaultwarden_proxy_network"
-	rm -f "$REPO_ROOT/vaultwarden/secrets/admin_token"
 	docker_rmdir "${_VW_VOL}"
 }
 
@@ -207,21 +221,28 @@ _NPM_VOL=/tmp/tier2-reverse-proxy
 
 # -- Backup --------------------------------------------------------------------
 
+_BACKUP_VOL=/tmp/tier2-backup
+
 @test "backup: borgmatic container starts without error" {
 	make_stub_env "$REPO_ROOT/backup/example.env" "$STUB_DIR/backup.env"
-	mkdir -p "$REPO_ROOT/backup/secrets"
-	echo "test-borg-pass" >"$REPO_ROOT/backup/secrets/borg_passphrase"
+
+	mkdir -p "${_BACKUP_VOL}/secrets"
+	echo "test-borg-pass" >"${_BACKUP_VOL}/secrets/borg_passphrase"
 
 	ensure_network "nextcloud_network"
 	ensure_network "gitea_network"
 
 	# borgmatic has no healthcheck; just verify it starts.
 	run docker compose -f "$REPO_ROOT/backup/docker-compose.yaml" \
+		--project-directory "${_BACKUP_VOL}" \
 		--env-file "$STUB_DIR/backup.env" up -d
 	assert_success
 
-	stack_down "$REPO_ROOT/backup/docker-compose.yaml" "$STUB_DIR/backup.env"
+	docker compose -f "$REPO_ROOT/backup/docker-compose.yaml" \
+		--project-directory "${_BACKUP_VOL}" \
+		--env-file "$STUB_DIR/backup.env" \
+		down -v --remove-orphans 2>/dev/null || true
 	remove_network "nextcloud_network"
 	remove_network "gitea_network"
-	rm -f "$REPO_ROOT/backup/secrets/borg_passphrase"
+	docker_rmdir "${_BACKUP_VOL}"
 }
