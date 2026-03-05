@@ -24,6 +24,14 @@ setup() {
 	export COMPOSE_PROJECT_NAME="nextcloud-tier3"
 }
 
+# Timeout constants with rationale
+# Mock AIO first run: image download + initial Nextcloud setup
+readonly MOCK_AIO_FIRST_RUN_TIMEOUT=1200
+# New stack: dependencies cached, should be faster than first run
+readonly NEW_STACK_APP_TIMEOUT=900
+# Standard dependency timeout
+readonly DEPENDENCY_TIMEOUT=120
+
 teardown() {
 	docker compose -f "$MOCK_AIO_COMPOSE" down -v --remove-orphans 2>/dev/null || true
 	docker compose -f "$NEW_STACK_COMPOSE" \
@@ -43,7 +51,7 @@ teardown() {
 	# ── Step 1: Start mock AIO ────────────────────────────────────────────────
 	docker compose -f "$MOCK_AIO_COMPOSE" up -d
 	# Healthcheck requires installed:true; allow up to 20 minutes.
-	wait_healthy "nextcloud-aio-nextcloud" 1200
+	wait_healthy "nextcloud-aio-nextcloud" "$MOCK_AIO_FIRST_RUN_TIMEOUT"
 
 	# ── Step 2: Seed test user ────────────────────────────────────────────────
 	docker exec \
@@ -98,9 +106,9 @@ teardown() {
 		--project-directory "$TMPDIR" \
 		--env-file "$ENV_FILE" up -d \
 		nextcloud_postgres nextcloud_redis nextcloud_app
-	wait_healthy "nextcloud_postgres" 120
-	wait_healthy "nextcloud_redis" 120
-	wait_healthy "nextcloud_app" 900
+	wait_healthy "nextcloud_postgres" "$DEPENDENCY_TIMEOUT"
+	wait_healthy "nextcloud_redis" "$DEPENDENCY_TIMEOUT"
+	wait_healthy "nextcloud_app" "$NEW_STACK_APP_TIMEOUT"
 
 	# ── Step 6: Run import ────────────────────────────────────────────────────
 	run bash -c "cd '$REPO_ROOT' && bash nextcloud/migrate/import.sh \

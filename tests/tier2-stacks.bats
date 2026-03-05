@@ -21,6 +21,13 @@ setup() {
 	mkdir -p "$STUB_DIR"
 }
 
+# Timeout constants with rationale
+# Nextcloud app has start_period of 600s in healthcheck
+# Allow 50% buffer for CI variability
+readonly NC_APP_TIMEOUT=900
+# PostgreSQL and Redis have shorter start periods (30s default)
+readonly DEPENDENCY_TIMEOUT=120
+
 # -- Nextcloud -----------------------------------------------------------------
 
 _NC_VOL=/tmp/tier2-nextcloud
@@ -74,9 +81,9 @@ teardown_nextcloud() {
 		--project-directory "${_NC_VOL}" \
 		--env-file "$STUB_DIR/nextcloud.env" up -d
 
-	wait_healthy "nextcloud_postgres" 120
-	wait_healthy "nextcloud_redis" 120
-	wait_healthy "nextcloud_app" 900
+	wait_healthy "nextcloud_postgres" "$DEPENDENCY_TIMEOUT"
+	wait_healthy "nextcloud_redis" "$DEPENDENCY_TIMEOUT"
+	wait_healthy "nextcloud_app" "$NC_APP_TIMEOUT"
 
 	run curl -sf http://localhost:8888/status.php
 	assert_success
