@@ -169,12 +169,23 @@ _VW_VOL=/tmp/tier2-vaultwarden
 
 _KUMA_VOL=/tmp/tier2-uptime-kuma
 
-@test "uptime-kuma: container starts without error" {
+setup_uptime_kuma() {
 	make_stub_env "$REPO_ROOT/uptime-kuma/example.env" "$STUB_DIR/uptime-kuma.env"
 	echo "UPTIME_KUMA_DATA_VOLUME=${_KUMA_VOL}/data" >>"$STUB_DIR/uptime-kuma.env"
 	mkdir -p "${_KUMA_VOL}/data"
 
 	ensure_network "uptime_kuma_proxy_network"
+}
+
+teardown_uptime_kuma() {
+	docker compose -f "$REPO_ROOT/uptime-kuma/docker-compose.yaml" \
+		--env-file "$STUB_DIR/uptime-kuma.env" down -v --remove-orphans 2>/dev/null || true
+	remove_network "uptime_kuma_proxy_network"
+	docker_rmdir "${_KUMA_VOL}"
+}
+
+@test "uptime-kuma: container starts without error" {
+	setup_uptime_kuma
 
 	# Uptime Kuma has no healthcheck and no host port mapping; just verify
 	# compose up exits 0 and the container is running.
@@ -185,10 +196,7 @@ _KUMA_VOL=/tmp/tier2-uptime-kuma
 	run docker inspect --format='{{.State.Status}}' uptime_kuma
 	assert_output "running"
 
-	docker compose -f "$REPO_ROOT/uptime-kuma/docker-compose.yaml" \
-		--env-file "$STUB_DIR/uptime-kuma.env" down -v --remove-orphans 2>/dev/null || true
-	remove_network "uptime_kuma_proxy_network"
-	docker_rmdir "${_KUMA_VOL}"
+	teardown_uptime_kuma
 }
 
 # -- Reverse proxy -------------------------------------------------------------
