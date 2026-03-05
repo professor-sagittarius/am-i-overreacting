@@ -48,12 +48,12 @@ teardown() {
 }
 
 @test "migration: AIO to new stack - full end-to-end" {
-	# ── Step 1: Start mock AIO ────────────────────────────────────────────────
+	# -- Step 1: Start mock AIO -------------------------------------------------
 	docker compose -f "$MOCK_AIO_COMPOSE" up -d
 	# Healthcheck requires installed:true; allow up to 20 minutes.
 	wait_healthy "nextcloud-aio-nextcloud" "$MOCK_AIO_FIRST_RUN_TIMEOUT"
 
-	# ── Step 2: Seed test user ────────────────────────────────────────────────
+	# -- Step 2: Seed test user ------------------------------------------------
 	docker exec \
 		-e OC_PASS="migration-user-pass" \
 		-u www-data nextcloud-aio-nextcloud \
@@ -62,7 +62,7 @@ teardown() {
 	docker exec -u www-data nextcloud-aio-nextcloud \
 		php occ files:scan testmigration 2>/dev/null || true
 
-	# ── Step 3: Export ────────────────────────────────────────────────────────
+	# -- Step 3: Export --------------------------------------------------------
 	mkdir -p "$TMPDIR"
 	run bash "$REPO_ROOT/nextcloud/migrate/export.sh" \
 		--output-dir "$EXPORT_BUNDLE" \
@@ -76,7 +76,7 @@ teardown() {
 	assert_success
 	assert [ -n "$output" ]
 
-	# ── Step 4: Set up new stack ──────────────────────────────────────────────
+	# -- Step 4: Set up new stack ----------------------------------------------
 	# Credentials go in a temp dir - never touches nextcloud/secrets/ or nextcloud/.env
 	mkdir -p "$SECRETS_DIR"
 	echo "new-pg-pass-test" >"$SECRETS_DIR/postgres_password"
@@ -96,7 +96,7 @@ teardown() {
 	docker_chown "/tmp/nc-test-volumes/app" "33:33"
 	docker_chown "/tmp/nc-test-volumes/data" "33:33"
 
-	# ── Step 5: Start new stack and wait for it to initialize ─────────────────
+	# -- Step 5: Start new stack and wait for it to initialize -----------------
 	# --project-directory makes ./secrets/... resolve to $TMPDIR/secrets/.
 	# COMPOSE_PROJECT_NAME (set in setup) ensures import.sh finds these containers.
 	# start_period for nextcloud_app is 600s; allow up to 15 minutes.
@@ -110,7 +110,7 @@ teardown() {
 	wait_healthy "nextcloud_redis" "$DEPENDENCY_TIMEOUT"
 	wait_healthy "nextcloud_app" "$NEW_STACK_APP_TIMEOUT"
 
-	# ── Step 6: Run import ────────────────────────────────────────────────────
+	# -- Step 6: Run import ----------------------------------------------------
 	run bash -c "cd '$REPO_ROOT' && bash nextcloud/migrate/import.sh \
 		--export-dir '$EXPORT_BUNDLE' \
 		--env-file '$ENV_FILE' \
@@ -118,7 +118,7 @@ teardown() {
 		--non-interactive"
 	assert_success
 
-	# ── Step 7: Verify ────────────────────────────────────────────────────────
+	# -- Step 7: Verify --------------------------------------------------------
 
 	# Wait for app to be responsive after restart by import
 	local waited=0
