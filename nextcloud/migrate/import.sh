@@ -24,6 +24,9 @@ DRY_RUN=false
 VERBOSE=false
 NON_INTERACTIVE=false
 EXPORT_DIR="nc-migration-export"
+ENV_FILE="nextcloud/.env"
+SECRETS_DIR="nextcloud/secrets"
+COMPOSE_FILE="nextcloud/docker-compose.yaml"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 usage() {
@@ -37,6 +40,9 @@ Options:
   -v, --verbose       Show detailed output
   --export-dir DIR    Location of export bundle (default: nc-migration-export)
   --non-interactive   Skip interactive prompts (answers 'n' to all)
+  --env-file FILE     Path to the stack .env file (default: nextcloud/.env)
+  --secrets-dir DIR   Directory containing postgres_password and admin_password (default: nextcloud/secrets)
+  --compose-file FILE Path to the stack docker-compose.yaml (default: nextcloud/docker-compose.yaml)
   -h, --help          Show this help
 
 EOF
@@ -49,6 +55,18 @@ while [[ $# -gt 0 ]]; do
 	--non-interactive) NON_INTERACTIVE=true ;;
 	--export-dir)
 		EXPORT_DIR="$2"
+		shift
+		;;
+	--env-file)
+		ENV_FILE="$2"
+		shift
+		;;
+	--secrets-dir)
+		SECRETS_DIR="$2"
+		shift
+		;;
+	--compose-file)
+		COMPOSE_FILE="$2"
 		shift
 		;;
 	-h | --help)
@@ -75,7 +93,7 @@ runcmd() {
 
 # ── .env parser ───────────────────────────────────────────────────────────────
 get_env_var() {
-	local key="$1" file="${2:-nextcloud/.env}"
+	local key="$1" file="${2:-$ENV_FILE}"
 	grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
 }
 
@@ -122,7 +140,7 @@ read_manifest() {
 check_prerequisites() {
 	step "Checking prerequisites (NEW HOST)"
 
-	if [[ ! -f "nextcloud/docker-compose.yaml" ]]; then
+	if [[ ! -f "$COMPOSE_FILE" ]]; then
 		error "This script must be run from the repository root directory."
 		error "Example: bash nextcloud/migrate/import.sh"
 		exit 1
@@ -138,22 +156,22 @@ check_prerequisites() {
 		exit 1
 	fi
 
-	if ! docker compose -f nextcloud/docker-compose.yaml ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
+	if ! docker compose -f "$COMPOSE_FILE" ps --quiet nextcloud_postgres 2>/dev/null | grep -q .; then
 		error "nextcloud_postgres is not running. Start the stack first:"
-		error "  docker compose -f nextcloud/docker-compose.yaml up -d"
+		error "  docker compose -f $COMPOSE_FILE up -d"
 		error "Verify the fresh install works (log in with the generated admin password),"
 		error "then re-run this script."
 		exit 1
 	fi
 
-	if [[ ! -f "nextcloud/secrets/postgres_password" ]]; then
-		error "nextcloud/secrets/postgres_password not found."
+	if [[ ! -f "$SECRETS_DIR/postgres_password" ]]; then
+		error "$SECRETS_DIR/postgres_password not found."
 		error "Run generate-passwords.sh and complete the initial stack setup first."
 		exit 1
 	fi
 
-	if [[ ! -f "nextcloud/secrets/admin_password" ]]; then
-		error "nextcloud/secrets/admin_password not found."
+	if [[ ! -f "$SECRETS_DIR/admin_password" ]]; then
+		error "$SECRETS_DIR/admin_password not found."
 		error "Run generate-passwords.sh and complete the initial stack setup first."
 		exit 1
 	fi
@@ -172,7 +190,7 @@ check_version() {
 	if [[ -z "$new_version" ]]; then
 		error "Could not read version from nextcloud_app."
 		error "Ensure nextcloud_app is running and healthy before importing:"
-		error "  docker compose -f nextcloud/docker-compose.yaml logs nextcloud_app"
+		error "  docker compose -f $COMPOSE_FILE logs nextcloud_app"
 		exit 1
 	fi
 
@@ -214,7 +232,7 @@ read_new_credentials() {
 
 	NEW_PG_USER=$(get_env_var "POSTGRES_USER")
 	NEW_PG_DB=$(get_env_var "POSTGRES_DB")
-	NEW_PG_PASS=$(cat nextcloud/secrets/postgres_password)
+	NEW_PG_PASS=$(cat "$SECRETS_DIR/postgres_password")
 	NEW_DATA_DIR=$(get_env_var "NEXTCLOUD_DATA_DIR")
 
 	local volume_dir
@@ -322,7 +340,7 @@ import_database() {
 		fi
 
 		info "Stopping nextcloud_app (keeping nextcloud_postgres running)..."
-		runcmd docker compose -f nextcloud/docker-compose.yaml stop nextcloud_app
+		runcmd docker compose -f "$COMPOSE_FILE" stop nextcloud_app
 
 		info "Dropping and recreating database '$NEW_PG_DB'..."
 		if [[ "$DRY_RUN" == true ]]; then
@@ -439,7 +457,7 @@ fix_data_ownership() {
 start_app_and_wait() {
 	step "Starting nextcloud_app (NEW HOST)"
 
-	runcmd docker compose -f nextcloud/docker-compose.yaml start nextcloud_app
+	runcmd docker compose -f "$COMPOSE_FILE" start nextcloud_app
 
 	if [[ "$DRY_RUN" == true ]]; then
 		info "[dry-run] Would wait for nextcloud_app to become healthy..."
@@ -512,7 +530,7 @@ handle_admin_password() {
 
 	if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
 		local new_pass
-		new_pass=$(cat nextcloud/secrets/admin_password)
+		new_pass=$(cat "$SECRETS_DIR/admin_password")
 		info "Resetting admin password..."
 		if [[ "$DRY_RUN" == true ]]; then
 			echo -e "  ${YELLOW}[dry-run]${NC} Would reset admin password via occ user:resetpassword"
