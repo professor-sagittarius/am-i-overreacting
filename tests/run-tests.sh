@@ -17,6 +17,23 @@ usage() {
 
 TIER="${1:-all}"
 
+# Require an explicit opt-in before running destructive tiers.
+# Create ~/.docker-test-machine once on any machine designated for testing.
+_check_test_machine() {
+	if [[ ! -f "$HOME/.docker-test-machine" ]]; then
+		echo ""
+		echo "ERROR: This machine has not been designated as a test machine."
+		echo ""
+		echo "Tier 2 and 3 tests tear down stacks with 'docker compose down -v',"
+		echo "which DELETES VOLUMES. They must not run on a production machine."
+		echo ""
+		echo "To designate this machine as safe for destructive tests, run:"
+		echo "  touch ~/.docker-test-machine"
+		echo ""
+		exit 1
+	fi
+}
+
 # Warn before running tier 2 or 3 on a machine that may have production stacks.
 _warn_destructive() {
 	echo ""
@@ -44,14 +61,17 @@ _warn_destructive() {
 case "$TIER" in
 tier1) "$BATS" "$TESTS_DIR/tier1-static.bats" ;;
 tier2)
+	_check_test_machine
 	_warn_destructive
 	"$BATS" "$TESTS_DIR/tier2-stacks.bats"
 	;;
 tier3)
+	_check_test_machine
 	_warn_destructive
 	"$BATS" "$TESTS_DIR/tier3-migration.bats"
 	;;
 all)
+	_check_test_machine
 	_warn_destructive
 	"$BATS" \
 		"$TESTS_DIR/tier1-static.bats" \

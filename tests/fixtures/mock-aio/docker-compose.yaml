@@ -36,11 +36,11 @@ services:
       - aio_app_data:/var/www/html
       - aio_nc_data:/mnt/ncdata
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      test: ["CMD-SHELL", "curl -sf http://localhost/status.php | grep -q '\"installed\":true'"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 600s
+      retries: 10
+      start_period: 900s
 
 volumes:
   aio_db_data:
