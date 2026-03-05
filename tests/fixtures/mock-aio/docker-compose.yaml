@@ -1,0 +1,48 @@
+# Minimal mock of Nextcloud AIO for migration testing.
+# Uses AIO container names so export.sh detects it as an AIO source.
+# Image version MUST match the version in nextcloud/docker-compose.yaml.
+services:
+  nextcloud-aio-database:
+    image: postgres:17-alpine
+    container_name: nextcloud-aio-database
+    environment:
+      POSTGRES_USER: oc_nextcloud
+      POSTGRES_DB: nextcloud_db
+      POSTGRES_PASSWORD: aio-pg-pass-test
+    volumes:
+      - aio_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oc_nextcloud -d nextcloud_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nextcloud-aio-nextcloud:
+    image: nextcloud:32.0.6
+    container_name: nextcloud-aio-nextcloud
+    depends_on:
+      nextcloud-aio-database:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: nextcloud-aio-database
+      POSTGRES_USER: oc_nextcloud
+      POSTGRES_DB: nextcloud_db
+      POSTGRES_PASSWORD: aio-pg-pass-test
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: aio-admin-pass-test
+      NEXTCLOUD_DATA_DIR: /mnt/ncdata
+    volumes:
+      - aio_app_data:/var/www/html
+      - aio_nc_data:/mnt/ncdata
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+volumes:
+  aio_db_data:
+  aio_app_data:
+  aio_nc_data:
