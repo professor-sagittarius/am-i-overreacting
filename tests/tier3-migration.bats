@@ -95,18 +95,6 @@ teardown() {
 	wait_healthy "nextcloud_redis" 120
 	wait_healthy "nextcloud_app" 900
 
-	# Wait for fresh install to complete - healthcheck passes before installed:true.
-	# import.sh version check requires the installed version (32.x.x.1 not 32.x.x).
-	local waited=0
-	while [[ $waited -lt 900 ]]; do
-		if docker exec -u www-data nextcloud_app \
-			curl -sf http://localhost/status.php 2>/dev/null | grep -q '"installed":true'; then
-			break
-		fi
-		sleep 10
-		waited=$((waited + 10))
-	done
-
 	# ── Step 6: Run import ────────────────────────────────────────────────────
 	run bash -c "cd '$REPO_ROOT' && bash nextcloud/migrate/import.sh \
 		--export-dir '$EXPORT_BUNDLE' \

@@ -197,7 +197,13 @@ check_version() {
 	verbose "Old version: $M_VERSION"
 	verbose "New version: $new_version"
 
-	if [[ "$M_VERSION" != "$new_version" ]]; then
+	# Compare only x.y.z - Nextcloud uses x.y.z.p internally but the Docker
+	# image tag and upgrade path only care about the first three components.
+	local old_xyz new_xyz
+	old_xyz=$(echo "$M_VERSION" | cut -d. -f1-3)
+	new_xyz=$(echo "$new_version" | cut -d. -f1-3)
+
+	if [[ "$old_xyz" != "$new_xyz" ]]; then
 		echo ""
 		error "╔══════════════════════════════════════════════════════════════════╗"
 		error "║              VERSION MISMATCH - CANNOT PROCEED                  ║"
