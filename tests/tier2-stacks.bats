@@ -2,6 +2,9 @@
 # Tier 2: Stack health integration tests. Requires Docker. Local only.
 # Each test brings up one stack, verifies health, then tears it down.
 # Stub .env files are generated from example.env.
+#
+# Volume directories are created at fixed paths under /tmp so teardown can
+# reliably remove them. docker_chown sets ownership without requiring sudo.
 
 setup() {
 	load 'lib/bats-support/load'
@@ -15,20 +18,29 @@ setup() {
 
 # -- Nextcloud -----------------------------------------------------------------
 
+_NC_VOL=/tmp/tier2-nextcloud
+
 setup_nextcloud() {
 	make_stub_env "$REPO_ROOT/nextcloud/example.env" "$STUB_DIR/nextcloud.env"
 
-	local tmpvol
-	tmpvol=$(mktemp -d)
+	# Override all volume paths explicitly (Docker Compose resolves
+	# ${DOCKER_VOLUME_DIR}/... references at .env load time using the first
+	# definition, so appending DOCKER_VOLUME_DIR alone is insufficient).
 	{
 		echo "HOST_LAN_IP=127.0.0.1"
-		echo "DOCKER_VOLUME_DIR=$tmpvol"
-		echo "NEXTCLOUD_APP_VOLUME=$tmpvol/app"
-		echo "NEXTCLOUD_DATA_VOLUME=$tmpvol/data"
-		echo "NEXTCLOUD_DB_VOLUME=$tmpvol/db"
-		echo "NEXTCLOUD_REDIS_VOLUME=$tmpvol/redis"
-		echo "COMPOSE_PROFILES="
+		echo "NEXTCLOUD_APP_VOLUME=${_NC_VOL}/app"
+		echo "NEXTCLOUD_DATA_VOLUME=${_NC_VOL}/data"
+		echo "NEXTCLOUD_DB_VOLUME=${_NC_VOL}/db"
+		echo "NEXTCLOUD_REDIS_VOLUME=${_NC_VOL}/redis"
+		echo "HARP_CERTS_VOLUME=${_NC_VOL}/harp_certs"
+		echo "CLAMAV_DB_VOLUME=${_NC_VOL}/clamav_db"
+		echo "ELASTICSEARCH_DATA_VOLUME=${_NC_VOL}/elasticsearch"
 	} >>"$STUB_DIR/nextcloud.env"
+
+	# Create volume directories; chown app and data to www-data (uid 33).
+	mkdir -p "${_NC_VOL}"/{app,data,db,redis,harp_certs,clamav_db,elasticsearch}
+	docker_chown "${_NC_VOL}/app" "33:33"
+	docker_chown "${_NC_VOL}/data" "33:33"
 
 	mkdir -p "$REPO_ROOT/nextcloud/secrets"
 	echo "test-pg-pass" >"$REPO_ROOT/nextcloud/secrets/postgres_password"
@@ -44,14 +56,19 @@ teardown_nextcloud() {
 	rm -f "$REPO_ROOT/nextcloud/secrets/postgres_password" \
 		"$REPO_ROOT/nextcloud/secrets/admin_password" \
 		"$REPO_ROOT/nextcloud/secrets/redis_password"
+	docker_rmdir "${_NC_VOL}"
 }
 
 @test "nextcloud: all core containers reach healthy status" {
 	setup_nextcloud
 
-	stack_up "$REPO_ROOT/nextcloud/docker-compose.yaml" \
-		"$STUB_DIR/nextcloud.env" \
-		nextcloud_postgres nextcloud_redis nextcloud_app
+	# start_period for nextcloud_app is 600s; allow up to 15 minutes.
+	docker compose -f "$REPO_ROOT/nextcloud/docker-compose.yaml" \
+		--env-file "$STUB_DIR/nextcloud.env" up -d
+
+	wait_healthy "nextcloud_postgres" 120
+	wait_healthy "nextcloud_redis" 120
+	wait_healthy "nextcloud_app" 900
 
 	run curl -sf http://localhost:8888/status.php
 	assert_success
@@ -62,15 +79,17 @@ teardown_nextcloud() {
 
 # -- Gitea ---------------------------------------------------------------------
 
+_GITEA_VOL=/tmp/tier2-gitea
+
 setup_gitea() {
 	make_stub_env "$REPO_ROOT/gitea/example.env" "$STUB_DIR/gitea.env"
-	local tmpvol
-	tmpvol=$(mktemp -d)
 	{
 		echo "HOST_LAN_IP=127.0.0.1"
-		echo "GITEA_DATA_VOLUME=$tmpvol/gitea"
-		echo "GITEA_DB_VOLUME=$tmpvol/gitea_db"
+		echo "GITEA_DATA_VOLUME=${_GITEA_VOL}/gitea"
+		echo "GITEA_DB_VOLUME=${_GITEA_VOL}/gitea_db"
 	} >>"$STUB_DIR/gitea.env"
+
+	mkdir -p "${_GITEA_VOL}"/{gitea,gitea_db}
 
 	mkdir -p "$REPO_ROOT/gitea/secrets"
 	echo "test-gitea-pg-pass" >"$REPO_ROOT/gitea/secrets/postgres_password"
@@ -82,13 +101,17 @@ teardown_gitea() {
 	stack_down "$REPO_ROOT/gitea/docker-compose.yaml" "$STUB_DIR/gitea.env"
 	remove_network "gitea_proxy_network"
 	rm -f "$REPO_ROOT/gitea/secrets/postgres_password"
+	docker_rmdir "${_GITEA_VOL}"
 }
 
-@test "gitea: container reaches healthy status" {
+@test "gitea: container starts and serves HTTP" {
 	setup_gitea
-	stack_up "$REPO_ROOT/gitea/docker-compose.yaml" \
-		"$STUB_DIR/gitea.env" \
-		gitea_postgres gitea_app
+	# gitea_app has no Docker healthcheck; wait for postgres then poll HTTP.
+	docker compose -f "$REPO_ROOT/gitea/docker-compose.yaml" \
+		--env-file "$STUB_DIR/gitea.env" up -d
+	wait_healthy "gitea_postgres" 120
+
+	wait_http "http://127.0.0.1:3000/api/healthz" 120
 
 	run curl -sf http://127.0.0.1:3000/api/healthz
 	assert_success
@@ -98,11 +121,13 @@ teardown_gitea() {
 
 # -- Vaultwarden ---------------------------------------------------------------
 
+_VW_VOL=/tmp/tier2-vaultwarden
+
 @test "vaultwarden: container reaches healthy status" {
 	make_stub_env "$REPO_ROOT/vaultwarden/example.env" "$STUB_DIR/vaultwarden.env"
-	local tmpvol
-	tmpvol=$(mktemp -d)
-	echo "VAULTWARDEN_DATA_VOLUME=$tmpvol/vw" >>"$STUB_DIR/vaultwarden.env"
+	echo "VAULTWARDEN_DATA_VOLUME=${_VW_VOL}/data" >>"$STUB_DIR/vaultwarden.env"
+	mkdir -p "${_VW_VOL}/data"
+
 	mkdir -p "$REPO_ROOT/vaultwarden/secrets"
 	echo "test-vw-token" >"$REPO_ROOT/vaultwarden/secrets/admin_token"
 
@@ -116,20 +141,22 @@ teardown_gitea() {
 	stack_down "$REPO_ROOT/vaultwarden/docker-compose.yaml" "$STUB_DIR/vaultwarden.env"
 	remove_network "vaultwarden_proxy_network"
 	rm -f "$REPO_ROOT/vaultwarden/secrets/admin_token"
+	docker_rmdir "${_VW_VOL}"
 }
 
 # -- Uptime Kuma ---------------------------------------------------------------
 
+_KUMA_VOL=/tmp/tier2-uptime-kuma
+
 @test "uptime-kuma: container starts without error" {
 	make_stub_env "$REPO_ROOT/uptime-kuma/example.env" "$STUB_DIR/uptime-kuma.env"
-	local tmpvol
-	tmpvol=$(mktemp -d)
-	echo "UPTIME_KUMA_DATA_VOLUME=$tmpvol/kuma" >>"$STUB_DIR/uptime-kuma.env"
+	echo "UPTIME_KUMA_DATA_VOLUME=${_KUMA_VOL}/data" >>"$STUB_DIR/uptime-kuma.env"
+	mkdir -p "${_KUMA_VOL}/data"
 
 	ensure_network "uptime_kuma_proxy_network"
 
-	# Uptime Kuma has no healthcheck and no host port mapping; just verify it
-	# starts without error (exit code 0 from compose up).
+	# Uptime Kuma has no healthcheck and no host port mapping; just verify
+	# compose up exits 0 and the container is running.
 	run docker compose -f "$REPO_ROOT/uptime-kuma/docker-compose.yaml" \
 		--env-file "$STUB_DIR/uptime-kuma.env" up -d
 	assert_success
@@ -140,19 +167,21 @@ teardown_gitea() {
 	docker compose -f "$REPO_ROOT/uptime-kuma/docker-compose.yaml" \
 		--env-file "$STUB_DIR/uptime-kuma.env" down -v --remove-orphans 2>/dev/null || true
 	remove_network "uptime_kuma_proxy_network"
+	docker_rmdir "${_KUMA_VOL}"
 }
 
 # -- Reverse proxy -------------------------------------------------------------
 
-@test "reverse-proxy: nginx-proxy-manager reaches healthy status" {
+_NPM_VOL=/tmp/tier2-reverse-proxy
+
+@test "reverse-proxy: nginx-proxy-manager starts without error" {
 	make_stub_env "$REPO_ROOT/reverse-proxy/example.env" "$STUB_DIR/reverse-proxy.env"
-	local tmpvol
-	tmpvol=$(mktemp -d)
 	{
 		echo "HOST_LAN_IP=127.0.0.1"
-		echo "NPM_DATA_VOLUME=$tmpvol/npm"
-		echo "NPM_LETSENCRYPT_VOLUME=$tmpvol/letsencrypt"
+		echo "NPM_DATA_VOLUME=${_NPM_VOL}/npm"
+		echo "NPM_LETSENCRYPT_VOLUME=${_NPM_VOL}/letsencrypt"
 	} >>"$STUB_DIR/reverse-proxy.env"
+	mkdir -p "${_NPM_VOL}"/{npm,letsencrypt}
 
 	ensure_network "nextcloud_proxy_network"
 	ensure_network "gitea_proxy_network"
@@ -173,6 +202,7 @@ teardown_gitea() {
 	remove_network "gitea_proxy_network"
 	remove_network "vaultwarden_proxy_network"
 	remove_network "uptime_kuma_proxy_network"
+	docker_rmdir "${_NPM_VOL}"
 }
 
 # -- Backup --------------------------------------------------------------------
