@@ -23,7 +23,6 @@ verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 DRY_RUN=false
 VERBOSE=false
 NON_INTERACTIVE=false
-SKIP_PERMISSION_GRANTS=false
 EXPORT_DIR="nc-migration-export"
 ENV_FILE="nextcloud/.env"
 SECRETS_DIR="nextcloud/secrets"
@@ -44,8 +43,6 @@ Options:
   --env-file FILE     Path to the stack .env file (default: nextcloud/.env)
   --secrets-dir DIR   Directory containing postgres_password and admin_password (default: nextcloud/secrets)
   --compose-file FILE Path to the stack docker-compose.yaml (default: nextcloud/docker-compose.yaml)
-  --skip-permission-grants
-                      Skip database ownership reassignment (use if you've manually fixed permissions)
   -h, --help          Show this help
 
 EOF
@@ -56,7 +53,6 @@ while [[ $# -gt 0 ]]; do
 	--dry-run) DRY_RUN=true ;;
 	-v | --verbose) VERBOSE=true ;;
 	--non-interactive) NON_INTERACTIVE=true ;;
-	--skip-permission-grants) SKIP_PERMISSION_GRANTS=true ;;
 	--export-dir)
 		EXPORT_DIR="$2"
 		shift
