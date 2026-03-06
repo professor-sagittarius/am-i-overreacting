@@ -1,0 +1,3 @@
+fixtures/stubs/
+tmp/
+fixtures/mock-aio/.env

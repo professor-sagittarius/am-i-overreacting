@@ -572,6 +572,48 @@ Then verify service connectivity: check Nextcloud logs for database errors, veri
 
 External traffic flows through Cloudflare Tunnel, so NPM doesn't need ports 80/443 exposed.
 
+## Testing
+
+The test suite uses [bats-core](https://github.com/bats-core/bats-core) and is split into three tiers:
+
+| Tier | What it tests | Requires Docker | Time |
+|------|--------------|-----------------|------|
+| Tier 1 | shellcheck, shfmt, compose config validation, script flags, example.env completeness | No | ~5s |
+| Tier 2 | Each stack starts and passes its healthcheck | Yes | ~20 min |
+| Tier 3 | Full AIO-to-new-stack migration end-to-end | Yes | ~15 min |
+
+Gitea Actions runs tier 1 automatically on every push. Tier 2 and 3 are local only.
+
+### Running tests
+
+Initialize submodules first (bats-core, bats-support, bats-assert):
+```bash
+git submodule update --init --recursive
+```
+
+Run a specific tier:
+```bash
+bash tests/run-tests.sh tier1   # static analysis - no Docker required
+bash tests/run-tests.sh tier2   # stack health - requires Docker
+bash tests/run-tests.sh tier3   # migration e2e - requires Docker, ~15 min
+bash tests/run-tests.sh all     # all three tiers
+```
+
+Tier 3 keeps all test credentials in `tests/tmp/` (created and removed by the test). It does not write to `nextcloud/.env` or `nextcloud/secrets/`.
+
+**Tier 2 and 3 must not be run on a production machine.** They start containers using the same names as the production stacks (`nextcloud_app`, `gitea_app`, etc.), tear down stacks with `docker compose down -v` (which deletes volumes), and bind the same ports. `run-tests.sh` prompts for confirmation before running either tier.
+
+### Testing Limitations
+
+The test suite does not currently cover:
+
+- **Large database migrations**: Performance testing with multi-gigabyte databases
+- **Encryption-enabled migrations**: The export script blocks migration when server-side encryption is enabled (you must follow Nextcloud's encryption migration guide first)
+- **Concurrent access**: Behavior when users attempt to connect during migration
+- **Partial migration recovery**: What happens if import fails mid-way through
+
+For these scenarios, test manually in a staging environment before production migration.
+
 ## Notes
 
 - **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:
