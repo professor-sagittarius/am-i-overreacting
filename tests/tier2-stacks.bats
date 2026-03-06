@@ -33,6 +33,9 @@ readonly DEPENDENCY_TIMEOUT=120
 _NC_VOL=/tmp/tier2-nextcloud
 
 setup_nextcloud() {
+	# Clean up any leftovers from previous failed runs
+	docker_rmdir "${_NC_VOL}" 2>/dev/null || true
+
 	make_stub_env "$REPO_ROOT/nextcloud/example.env" "$STUB_DIR/nextcloud.env"
 
 	# Override all volume paths explicitly (Docker Compose resolves
@@ -61,6 +64,9 @@ setup_nextcloud() {
 	echo "test-admin-pass" >"${_NC_VOL}/secrets/admin_password"
 	echo "test-redis-pass" >"${_NC_VOL}/secrets/redis_password"
 
+	# Copy scripts directory for bind mounts (notify_push_entrypoint.sh)
+	cp -r "${REPO_ROOT}/nextcloud/scripts" "${_NC_VOL}/"
+
 	ensure_network "nextcloud_proxy_network"
 }
 
@@ -87,7 +93,7 @@ teardown_nextcloud() {
 
 	run curl -sf http://localhost:8888/status.php
 	assert_success
-	assert_output --partial '\"installed\":true'
+	assert_output --partial '"installed":true'
 
 	teardown_nextcloud
 }
