@@ -258,7 +258,7 @@ services:
       - NC_INSTANCE_URL=http://nextcloud_app
       - HP_TRUSTED_PROXY_IPS=${NEXTCLOUD_INTERNAL_NETWORK_SUBNET:-172.29.0.0/24}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock  # rw required: HaRP manages ExApp container lifecycle (create/start/stop/remove/image-pull)
       - ${HARP_CERTS_VOLUME}:/certs
     ports:
       - ${HOST_LAN_IP}:8780:8780
