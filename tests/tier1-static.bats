@@ -242,6 +242,18 @@ _check_env_completeness() {
 		"$REPO_ROOT/backup/example.env"
 }
 
+@test "example.env completeness: renovate" {
+	_check_env_completeness \
+		"$REPO_ROOT/renovate/docker-compose.yaml" \
+		"$REPO_ROOT/renovate/example.env"
+}
+
+@test "example.env completeness: uptime-kuma" {
+	_check_env_completeness \
+		"$REPO_ROOT/uptime-kuma/docker-compose.yaml" \
+		"$REPO_ROOT/uptime-kuma/example.env"
+}
+
 # -- Database dump format validation -------------------------------------------
 
 @test "export.sh: PostgreSQL dump uses --no-owner --no-acl flags" {
