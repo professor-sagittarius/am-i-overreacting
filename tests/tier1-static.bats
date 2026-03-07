@@ -121,12 +121,12 @@ _validate_compose() {
 	local tmpdir
 	tmpdir=$(mktemp -d)
 
-	for stack in nextcloud gitea vaultwarden backup renovate; do
+	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
 		mkdir -p "$tmpdir/$stack"
 		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
 			echo "" >"$tmpdir/$stack/.env"
 	done
-	for stack in nextcloud gitea vaultwarden backup renovate; do
+	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
 		sed -i 's/=changeme\b/=already-set/g' "$tmpdir/$stack/.env" 2>/dev/null || true
 	done
 
@@ -152,7 +152,7 @@ _validate_compose() {
 @test "generate-passwords: second run does not crash" {
 	local tmpdir
 	tmpdir=$(mktemp -d)
-	for stack in nextcloud gitea vaultwarden backup renovate; do
+	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
 		mkdir -p "$tmpdir/$stack"
 		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
 			echo "" >"$tmpdir/$stack/.env"

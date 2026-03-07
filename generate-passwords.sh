@@ -147,6 +147,7 @@ if command -v free >/dev/null 2>&1; then
 			[ -n "$(tail -c1 "$env_file")" ] && printf '\n' >>"$env_file"
 			echo "${key}=${value}" >>"$env_file"
 		fi
+		return 0
 	}
 
 	# nextcloud limits
