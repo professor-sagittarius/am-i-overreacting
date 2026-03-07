@@ -7,6 +7,20 @@ services:
       - ${UPTIME_KUMA_DATA_VOLUME}:/app/data
     networks:
       - uptime_kuma_proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: ${UPTIME_KUMA_MEMORY_LIMIT:-256m}
+        reservations:
+          memory: ${UPTIME_KUMA_MEMORY_RESERVATION:-64m}
 
 networks:
   uptime_kuma_proxy:
