@@ -1,6 +1,7 @@
 #!/bin/bash
 # Replaces all 'changeme' default passwords in .env files with secure random passwords.
 # Also copies cross-stack values into backup/.env.
+set -euo pipefail
 
 command -v openssl >/dev/null 2>&1 || {
 	echo "Error: openssl is required but not installed."
@@ -8,7 +9,7 @@ command -v openssl >/dev/null 2>&1 || {
 }
 
 # Update this list when adding a new stack
-ENV_FILES="nextcloud/.env gitea/.env vaultwarden/.env backup/.env renovate/.env"
+ENV_FILES=(nextcloud/.env gitea/.env vaultwarden/.env backup/.env renovate/.env uptime-kuma/.env)
 REPLACED=0
 
 # Create secrets directories and generate secret files (only if they don't already exist)
@@ -38,10 +39,11 @@ done
 # redis_password must be readable by www-data (GID 33) inside containers - both
 # nextcloud_app (via PHP at runtime) and nextcloud_notify_push read it directly.
 # Applied unconditionally so existing files are also fixed on re-run.
-chown :33 nextcloud/secrets/redis_password
+# chown may fail if GID 33 doesn't exist on the host (e.g., in CI) - that's OK.
+chown :33 nextcloud/secrets/redis_password 2>/dev/null || true
 chmod 640 nextcloud/secrets/redis_password
 
-for env_file in ${ENV_FILES}; do
+for env_file in "${ENV_FILES[@]}"; do
 	if [ ! -f "${env_file}" ]; then
 		echo "Skipping ${env_file} (not found)"
 		continue
@@ -140,7 +142,7 @@ if command -v free >/dev/null 2>&1; then
 	# Write limit to .env file only if key is absent or empty
 	set_if_absent() {
 		local env_file="$1" key="$2" value="$3"
-		[ -f "$env_file" ] || return
+		[ -f "$env_file" ] || return 0
 		if ! grep -q "^${key}=" "$env_file"; then
 			[ -n "$(tail -c1 "$env_file")" ] && printf '\n' >>"$env_file"
 			echo "${key}=${value}" >>"$env_file"
@@ -170,6 +172,9 @@ if command -v free >/dev/null 2>&1; then
 
 	# renovate limits
 	set_if_absent renovate/.env RENOVATE_MEMORY_LIMIT "$(calc_mem 3 50 512)"
+
+	# uptime-kuma limits
+	set_if_absent uptime-kuma/.env UPTIME_KUMA_MEMORY_LIMIT "$(calc_mem 3 100 256)"
 
 	# reverse-proxy limits
 	set_if_absent reverse-proxy/.env NPM_MEMORY_LIMIT "$(calc_mem 3 100 256)"
