@@ -33,7 +33,10 @@ readonly DEPENDENCY_TIMEOUT=120
 _NC_VOL=/tmp/tier2-nextcloud
 
 setup_nextcloud() {
-	# Clean up any leftovers from previous failed runs
+	# Remove any leftover containers from previous failed runs (teardown not called on failure)
+	docker rm -f nextcloud_app nextcloud_postgres nextcloud_redis nextcloud_notify_push \
+		nextcloud_imaginary nextcloud_whiteboard nextcloud_elasticsearch \
+		nextcloud_clamav nextcloud_harp 2>/dev/null || true
 	docker_rmdir "${_NC_VOL}" 2>/dev/null || true
 
 	make_stub_env "$REPO_ROOT/nextcloud/example.env" "$STUB_DIR/nextcloud.env"
