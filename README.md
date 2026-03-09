@@ -315,6 +315,38 @@ docker compose -f gitea/docker-compose.yaml up -d
 
 ---
 
+### Gitea-Nextcloud OAuth2
+
+Lets users sign into Gitea using their Nextcloud credentials. Both stacks must be running and healthy before completing this.
+
+**1. Register the OAuth2 client in Nextcloud**
+
+Go to **Nextcloud Settings → Security → OAuth 2.0 clients** and click **Add client**:
+
+| Field | Value |
+|-------|-------|
+| Name | `Gitea` |
+| Redirect URI | `https://<your-gitea-domain>/user/oauth2/nextcloud/callback` |
+
+Copy the generated **client ID** and **client secret** - they are only shown once.
+
+**2. Add the authentication source in Gitea**
+
+Go to **Gitea Site Administration → Authentication Sources** and click **Add Authentication Source**:
+
+| Field | Value |
+|-------|-------|
+| Authentication Type | OAuth2 |
+| Authentication Name | `nextcloud` (must match the slug in the redirect URI above) |
+| OAuth2 Provider | Nextcloud |
+| Client ID | from step 1 |
+| Client Secret | from step 1 |
+| Nextcloud URL | `https://<your-nextcloud-domain>` |
+
+Save, then verify by signing out of Gitea and clicking **Sign in with Nextcloud** on the login page.
+
+---
+
 ### Renovate (Dependency Updates)
 
 Renovate opens pull requests on Gitea when Docker image versions are outdated. It runs weekly via cron.

@@ -200,8 +200,8 @@ _check_env_completeness() {
 			missing+=("$var")
 		fi
 	done < <(
-		grep -oE '\$\{[A-Z_][A-Z0-9_]*[^}]*\}' "$compose" \
-			| grep -oE '^[A-Z_][A-Z0-9_]+' \
+		grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' "$compose" \
+			| tr -d '${}' \
 			| sort -u
 	)
 
