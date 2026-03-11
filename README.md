@@ -211,7 +211,7 @@ docker compose -f reverse-proxy/docker-compose.yaml up -d
 
 #### 8. Prepare Nextcloud volumes
 
-Create the data directory with correct ownership for `www-data` (UID 33). The hook scripts (`post-installation.sh` runs once after first install; `before-startup.sh` runs on every startup) are bind-mounted directly from the repo — no copying needed. `chgrp 33` sets the group to `www-data` so the container can execute the scripts; git tracks them as executable (`755`), which with a `0027` umask produces `750` on checkout, giving the group read and execute access:
+Create the data directory with correct ownership for `www-data` (UID 33). `before-startup.sh` runs on every container startup (including the first, immediately after installation) and is bind-mounted directly from the repo - no copying needed. `chgrp 33` sets the group to `www-data` so the container can execute the script; git tracks it as executable (`755`), which with a `0027` umask produces `750` on checkout, giving the group read and execute access:
 
 ```bash
 source nextcloud/.env
@@ -249,7 +249,7 @@ docker compose -f nextcloud/docker-compose.yaml up -d
 
 #### 11. Configure notify_push
 
-The notify_push app is installed automatically by the post-installation hook (if included in `NEXTCLOUD_APPS`). Run the setup command to complete the configuration:
+The notify_push app is installed automatically by `before-startup.sh` on first startup (if included in `NEXTCLOUD_APPS`). Run the setup command to complete the configuration:
 
 ```bash
 docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yourdomain.com/push
@@ -269,7 +269,7 @@ This may take some time depending on the number of files.
 
 #### 13. Verify HaRP/AppAPI *(skip if harp profile is not enabled)*
 
-The AppAPI deploy daemon is registered automatically by the post-installation hook using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** - you should see a "Harp Proxy (Docker)" daemon registered.
+The AppAPI deploy daemon is registered automatically by `before-startup.sh` on first startup using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** - you should see a "Harp Proxy (Docker)" daemon registered.
 
 ---
 
