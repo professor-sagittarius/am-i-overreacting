@@ -168,6 +168,8 @@ if profile_enabled "harp" && [ -n "${HP_SHARED_KEY:-}" ]; then
 		--harp_frp_address "nextcloud_harp:8782" \
 		--harp_shared_key "${HP_SHARED_KEY}" \
 		--set-default 2>/dev/null || true
+else
+	php occ app_api:daemon:unregister harp_proxy_docker 2>/dev/null || true
 fi
 
 # ── Background job scheduler ──────────────────────────────────────────────────
