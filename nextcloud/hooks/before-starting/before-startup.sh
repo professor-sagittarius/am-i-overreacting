@@ -180,3 +180,8 @@ php occ background:cron
 # Idempotent; catches gaps introduced by Nextcloud upgrades automatically.
 php occ db:add-missing-indices
 php occ db:add-missing-columns
+
+# ── Post-upgrade repair ───────────────────────────────────────────────────────
+# Runs on every startup; catches schema and data inconsistencies introduced by
+# Nextcloud version upgrades. Safe to run repeatedly (idempotent).
+php occ maintenance:repair --include-expensive
