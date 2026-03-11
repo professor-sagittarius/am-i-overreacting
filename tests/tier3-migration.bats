@@ -84,9 +84,7 @@ teardown() {
 	echo "new-redis-pass-test" >"$SECRETS_DIR/redis_password"
 
 	# Copy hooks to temp dir so --project-directory resolves ./hooks correctly
-	mkdir -p "$TMPDIR/hooks/post-installation" "$TMPDIR/hooks/before-starting"
-	cp "$REPO_ROOT/nextcloud/hooks/post-installation/post-installation.sh" \
-		"$TMPDIR/hooks/post-installation/"
+	mkdir -p "$TMPDIR/hooks/before-starting"
 	cp "$REPO_ROOT/nextcloud/hooks/before-starting/before-startup.sh" \
 		"$TMPDIR/hooks/before-starting/"
 

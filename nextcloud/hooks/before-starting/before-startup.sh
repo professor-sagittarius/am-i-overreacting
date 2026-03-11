@@ -3,8 +3,8 @@
 # Re-applies all .env-driven configuration, making it possible to add or remove
 # optional profiles (COMPOSE_PROFILES) without manual occ commands.
 #
-# On first startup this runs after post-installation.sh; all operations here
-# are idempotent so overlap with post-installation.sh is harmless.
+# This is the sole Nextcloud configuration hook - no post-installation.sh exists.
+# All operations are idempotent; updating .env and restarting applies changes.
 set -euo pipefail
 
 # Helper: check if a profile is enabled in COMPOSE_PROFILES
