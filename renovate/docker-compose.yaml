@@ -4,14 +4,14 @@ services:
   renovate:
     image: ghcr.io/renovatebot/renovate:43.46.2
     container_name: renovate
-    entrypoint: ["sh", "-c", "RENOVATE_TOKEN=$$(cat /run/secrets/gitea_token) renovate"]
+    entrypoint: ["sh", "-c", "RENOVATE_TOKEN=$$(cat /run/secrets/forgejo_token) renovate"]
     environment:
-      - RENOVATE_PLATFORM=gitea
-      - RENOVATE_ENDPOINT=${GITEA_URL}
+      - RENOVATE_PLATFORM=forgejo
+      - RENOVATE_ENDPOINT=${FORGEJO_URL}
       - RENOVATE_REPOSITORIES=${RENOVATE_REPOSITORIES}
       - LOG_LEVEL=info
     volumes:
-      - ./secrets/gitea_token:/run/secrets/gitea_token:ro
+      - ./secrets/forgejo_token:/run/secrets/forgejo_token:ro
     security_opt:
       - no-new-privileges:true
     deploy:
