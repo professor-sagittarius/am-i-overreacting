@@ -13,7 +13,7 @@ services:
     networks:
       - tunnel
       - nextcloud_proxy
-      - gitea_proxy
+      - forgejo_proxy
       - vaultwarden_proxy
       - uptime_kuma_proxy
     security_opt:
@@ -46,8 +46,8 @@ networks:
   nextcloud_proxy:
     name: nextcloud_proxy_network
     external: true
-  gitea_proxy:
-    name: gitea_proxy_network
+  forgejo_proxy:
+    name: forgejo_proxy_network
     external: true
   vaultwarden_proxy:
     name: vaultwarden_proxy_network
