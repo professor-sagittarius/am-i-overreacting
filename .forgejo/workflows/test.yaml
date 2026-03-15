@@ -1,4 +1,4 @@
-# .gitea/workflows/test.yaml
+# .forgejo/workflows/test.yaml
 name: Static tests
 
 on:
