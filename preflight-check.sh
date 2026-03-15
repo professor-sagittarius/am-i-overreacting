@@ -2,7 +2,7 @@
 # Run before 'docker compose up' to catch unconfigured placeholders.
 set -euo pipefail
 FOUND=0
-for f in nextcloud/.env gitea/.env vaultwarden/.env backup/.env reverse-proxy/.env; do
+for f in nextcloud/.env forgejo/.env vaultwarden/.env backup/.env reverse-proxy/.env; do
 	if [ ! -f "$f" ]; then
 		echo "WARNING: $f not found - copy from example.env and configure"
 		FOUND=$((FOUND + 1))

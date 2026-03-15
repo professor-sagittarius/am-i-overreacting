@@ -9,19 +9,19 @@ command -v openssl >/dev/null 2>&1 || {
 }
 
 # Update this list when adding a new stack
-ENV_FILES=(nextcloud/.env gitea/.env vaultwarden/.env backup/.env renovate/.env uptime-kuma/.env)
+ENV_FILES=(nextcloud/.env forgejo/.env vaultwarden/.env backup/.env renovate/.env uptime-kuma/.env)
 REPLACED=0
 
 # Create secrets directories and generate secret files (only if they don't already exist)
 # Use umask 077 subshells so files are created with mode 600 from the start,
 # not created insecure and then chmod'd
-install -d -m 700 nextcloud/secrets gitea/secrets backup/secrets vaultwarden/secrets renovate/secrets
+install -d -m 700 nextcloud/secrets forgejo/secrets backup/secrets vaultwarden/secrets renovate/secrets
 
 SECRETS=(
 	"nextcloud/secrets/postgres_password"
 	"nextcloud/secrets/admin_password"
 	"nextcloud/secrets/redis_password"
-	"gitea/secrets/postgres_password"
+	"forgejo/secrets/postgres_password"
 	"backup/secrets/borg_passphrase"
 	"vaultwarden/secrets/admin_token"
 )
@@ -97,10 +97,10 @@ if [ -f "nextcloud/.env" ]; then
 	copy_to_backup nextcloud/.env NEXTCLOUD_DATA_VOLUME NEXTCLOUD_DATA_VOLUME
 fi
 
-if [ -f "gitea/.env" ]; then
-	copy_to_backup gitea/.env POSTGRES_DB GITEA_DB
-	copy_to_backup gitea/.env POSTGRES_USER GITEA_DB_USER
-	copy_to_backup gitea/.env GITEA_DATA_VOLUME GITEA_DATA_VOLUME
+if [ -f "forgejo/.env" ]; then
+	copy_to_backup forgejo/.env POSTGRES_DB FORGEJO_DB
+	copy_to_backup forgejo/.env POSTGRES_USER FORGEJO_DB_USER
+	copy_to_backup forgejo/.env FORGEJO_DATA_VOLUME FORGEJO_DATA_VOLUME
 fi
 
 if [ -f "vaultwarden/.env" ]; then
@@ -108,11 +108,11 @@ if [ -f "vaultwarden/.env" ]; then
 fi
 
 # Generate ~/.pgpass for borgmatic from postgres secret files
-if [ -f "backup/.env" ] && [ -f "nextcloud/secrets/postgres_password" ] && [ -f "gitea/secrets/postgres_password" ]; then
+if [ -f "backup/.env" ] && [ -f "nextcloud/secrets/postgres_password" ] && [ -f "forgejo/secrets/postgres_password" ]; then
 	(
 		umask 077
 		printf "nextcloud_postgres:5432:*:*:%s\n" "$(cat nextcloud/secrets/postgres_password)" >backup/secrets/pgpass &&
-			printf "gitea_postgres:5432:*:*:%s\n" "$(cat gitea/secrets/postgres_password)" >>backup/secrets/pgpass
+			printf "forgejo_postgres:5432:*:*:%s\n" "$(cat forgejo/secrets/postgres_password)" >>backup/secrets/pgpass
 	)
 	echo "Generated backup/secrets/pgpass"
 	COPIED=$((COPIED + 1))
@@ -161,9 +161,9 @@ if command -v free >/dev/null 2>&1; then
 	set_if_absent nextcloud/.env NEXTCLOUD_HARP_MEMORY_LIMIT "$(calc_mem 3 50 512)"
 	set_if_absent nextcloud/.env NEXTCLOUD_NOTIFY_PUSH_MEMORY_LIMIT "$(calc_mem 1 50 256)"
 
-	# gitea limits
-	set_if_absent gitea/.env GITEA_APP_MEMORY_LIMIT "$(calc_mem 3 50 512)"
-	set_if_absent gitea/.env GITEA_POSTGRES_MEMORY_LIMIT "$(calc_mem 3 25 1024)"
+	# forgejo limits
+	set_if_absent forgejo/.env FORGEJO_APP_MEMORY_LIMIT "$(calc_mem 3 50 512)"
+	set_if_absent forgejo/.env FORGEJO_POSTGRES_MEMORY_LIMIT "$(calc_mem 3 25 1024)"
 
 	# vaultwarden limits
 	set_if_absent vaultwarden/.env VAULTWARDEN_MEMORY_LIMIT "$(calc_mem 3 100 256)"
