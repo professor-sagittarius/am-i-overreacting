@@ -1,26 +1,26 @@
 services:
-  gitea_app:
-    image: gitea/gitea:1.25.4
-    container_name: gitea_app
+  forgejo_app:
+    image: codeberg.org/forgejo/forgejo:14.0.3
+    container_name: forgejo_app
     restart: unless-stopped
     depends_on:
-      gitea_postgres:
+      forgejo_postgres:
         condition: service_healthy
     ports:
-      - "${HOST_LAN_IP}:${GITEA_HTTP_PORT:-3000}:3000"
-      - "${HOST_LAN_IP}:${GITEA_SSH_PORT:-2222}:22"
+      - "${HOST_LAN_IP}:${FORGEJO_HTTP_PORT:-3000}:3000"
+      - "${HOST_LAN_IP}:${FORGEJO_SSH_PORT:-2222}:22"
     environment:
-      - GITEA__database__DB_TYPE=postgres
-      - GITEA__database__HOST=gitea_postgres:5432
-      - GITEA__database__NAME=${POSTGRES_DB}
-      - GITEA__database__USER=${POSTGRES_USER}
-      - GITEA__database__PASSWD__FILE=/run/secrets/postgres_password
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=forgejo_postgres:5432
+      - FORGEJO__database__NAME=${POSTGRES_DB}
+      - FORGEJO__database__USER=${POSTGRES_USER}
+      - FORGEJO__database__PASSWD__FILE=/run/secrets/postgres_password
     volumes:
-      - ${GITEA_DATA_VOLUME}:/data
+      - ${FORGEJO_DATA_VOLUME}:/data
       - ./secrets/postgres_password:/run/secrets/postgres_password:ro
     networks:
-      - gitea
-      - gitea_proxy
+      - forgejo
+      - forgejo_proxy
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -32,21 +32,21 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${GITEA_APP_MEMORY_LIMIT:-512m}
+          memory: ${FORGEJO_APP_MEMORY_LIMIT:-512m}
 
-  gitea_postgres:
+  forgejo_postgres:
     image: postgres:17.8-alpine3.23
-    container_name: gitea_postgres
+    container_name: forgejo_postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
     volumes:
-      - ${GITEA_DB_VOLUME}:/var/lib/postgresql/data
+      - ${FORGEJO_DB_VOLUME}:/var/lib/postgresql/data
       - ./secrets/postgres_password:/run/secrets/postgres_password:ro
     networks:
-      - gitea
+      - forgejo
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 30s
@@ -58,12 +58,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${GITEA_POSTGRES_MEMORY_LIMIT:-1g}
+          memory: ${FORGEJO_POSTGRES_MEMORY_LIMIT:-1g}
 
 networks:
-  gitea:
-    name: gitea_network
+  forgejo:
+    name: forgejo_network
     driver: bridge
-  gitea_proxy:
-    name: gitea_proxy_network
+  forgejo_proxy:
+    name: forgejo_proxy_network
     external: true
