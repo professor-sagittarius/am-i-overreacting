@@ -16,7 +16,7 @@ if [ "$NC_RUNNING" = true ]; then
       || echo "WARNING: Failed to disable maintenance mode - check manually"' EXIT
 	docker exec -u www-data nextcloud_app php occ maintenance:mode --on
 else
-	echo "WARNING: nextcloud_app is not running - skipping maintenance mode. Gitea/Vaultwarden will still be backed up."
+	echo "WARNING: nextcloud_app is not running - skipping maintenance mode. Forgejo/Vaultwarden will still be backed up."
 fi
 
 docker compose -f "${SCRIPT_DIR}/docker-compose.yaml" --env-file "${SCRIPT_DIR}/.env" run --rm borgmatic borgmatic

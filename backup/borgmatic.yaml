@@ -5,7 +5,7 @@ repositories:
 source_directories:
   - /mnt/nextcloud-app    # backup/docker-compose.yaml: NEXTCLOUD_APP_VOLUME
   - /mnt/nextcloud-data   # backup/docker-compose.yaml: NEXTCLOUD_DATA_VOLUME
-  - /mnt/gitea-data       # backup/docker-compose.yaml: GITEA_DATA_VOLUME
+  - /mnt/forgejo-data       # backup/docker-compose.yaml: FORGEJO_DATA_VOLUME
   - /mnt/vaultwarden-data/db-backup.sqlite3
   - /mnt/vaultwarden-data/attachments
   - /mnt/vaultwarden-data/sends
@@ -14,9 +14,9 @@ postgresql_databases:
   - name: "${NEXTCLOUD_DB}"
     hostname: nextcloud_postgres
     username: "${NEXTCLOUD_DB_USER}"
-  - name: "${GITEA_DB}"
-    hostname: gitea_postgres
-    username: "${GITEA_DB_USER}"
+  - name: "${FORGEJO_DB}"
+    hostname: forgejo_postgres
+    username: "${FORGEJO_DB_USER}"
 
 encryption_passphrase: "${BORG_PASSPHRASE}"
 
