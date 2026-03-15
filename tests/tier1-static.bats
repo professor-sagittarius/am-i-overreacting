@@ -27,8 +27,8 @@ setup() {
 	local unformatted
 	unformatted=$(find "$REPO_ROOT" -name "*.sh" \
 		-not -path "*/.git/*" \
-		-not -path "*/tests/lib/*" \
-		| xargs shfmt -l)
+		-not -path "*/tests/lib/*" |
+		xargs shfmt -l)
 
 	if [[ -n "$unformatted" ]]; then
 		echo "Files with formatting drift (run 'shfmt -w' to fix):"
@@ -58,8 +58,8 @@ _validate_compose() {
 	_validate_compose "nextcloud"
 }
 
-@test "compose config: gitea" {
-	_validate_compose "gitea"
+@test "compose config: forgejo" {
+	_validate_compose "forgejo"
 }
 
 @test "compose config: vaultwarden" {
@@ -87,7 +87,7 @@ _validate_compose() {
 @test "preflight-check: passes when no changeme values present" {
 	local tmpdir
 	tmpdir=$(mktemp -d)
-	for stack in nextcloud gitea vaultwarden backup reverse-proxy; do
+	for stack in nextcloud forgejo vaultwarden backup reverse-proxy; do
 		mkdir -p "$tmpdir/$stack"
 		echo "SOME_VAR=real-value" >"$tmpdir/$stack/.env"
 	done
@@ -102,7 +102,7 @@ _validate_compose() {
 @test "preflight-check: exits non-zero when changeme placeholder present" {
 	local tmpdir
 	tmpdir=$(mktemp -d)
-	for stack in nextcloud gitea vaultwarden backup reverse-proxy; do
+	for stack in nextcloud forgejo vaultwarden backup reverse-proxy; do
 		mkdir -p "$tmpdir/$stack"
 		echo "SOME_VAR=real-value" >"$tmpdir/$stack/.env"
 	done
@@ -121,12 +121,12 @@ _validate_compose() {
 	local tmpdir
 	tmpdir=$(mktemp -d)
 
-	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
+	for stack in nextcloud forgejo vaultwarden backup renovate uptime-kuma; do
 		mkdir -p "$tmpdir/$stack"
 		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
 			echo "" >"$tmpdir/$stack/.env"
 	done
-	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
+	for stack in nextcloud forgejo vaultwarden backup renovate uptime-kuma; do
 		sed -i 's/=changeme\b/=already-set/g' "$tmpdir/$stack/.env" 2>/dev/null || true
 	done
 
@@ -137,7 +137,7 @@ _validate_compose() {
 		"nextcloud/secrets/postgres_password"
 		"nextcloud/secrets/admin_password"
 		"nextcloud/secrets/redis_password"
-		"gitea/secrets/postgres_password"
+		"forgejo/secrets/postgres_password"
 		"backup/secrets/borg_passphrase"
 		"vaultwarden/secrets/admin_token"
 	)
@@ -152,7 +152,7 @@ _validate_compose() {
 @test "generate-passwords: second run does not crash" {
 	local tmpdir
 	tmpdir=$(mktemp -d)
-	for stack in nextcloud gitea vaultwarden backup renovate uptime-kuma; do
+	for stack in nextcloud forgejo vaultwarden backup renovate uptime-kuma; do
 		mkdir -p "$tmpdir/$stack"
 		cp "$REPO_ROOT/$stack/example.env" "$tmpdir/$stack/.env" 2>/dev/null ||
 			echo "" >"$tmpdir/$stack/.env"
@@ -200,9 +200,9 @@ _check_env_completeness() {
 			missing+=("$var")
 		fi
 	done < <(
-		grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' "$compose" \
-			| tr -d '${}' \
-			| sort -u
+		grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' "$compose" |
+			tr -d '${}' |
+			sort -u
 	)
 
 	if [[ ${#missing[@]} -gt 0 ]]; then
@@ -218,10 +218,10 @@ _check_env_completeness() {
 		"$REPO_ROOT/nextcloud/example.env"
 }
 
-@test "example.env completeness: gitea" {
+@test "example.env completeness: forgejo" {
 	_check_env_completeness \
-		"$REPO_ROOT/gitea/docker-compose.yaml" \
-		"$REPO_ROOT/gitea/example.env"
+		"$REPO_ROOT/forgejo/docker-compose.yaml" \
+		"$REPO_ROOT/forgejo/example.env"
 }
 
 @test "example.env completeness: vaultwarden" {

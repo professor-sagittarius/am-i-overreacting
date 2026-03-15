@@ -101,49 +101,49 @@ teardown_nextcloud() {
 	teardown_nextcloud
 }
 
-# -- Gitea ---------------------------------------------------------------------
+# -- Forgejo -------------------------------------------------------------------
 
-_GITEA_VOL=/tmp/tier2-gitea
+_FORGEJO_VOL=/tmp/tier2-forgejo
 
-setup_gitea() {
-	make_stub_env "$REPO_ROOT/gitea/example.env" "$STUB_DIR/gitea.env"
+setup_forgejo() {
+	make_stub_env "$REPO_ROOT/forgejo/example.env" "$STUB_DIR/forgejo.env"
 	{
 		echo "HOST_LAN_IP=127.0.0.1"
-		echo "GITEA_DATA_VOLUME=${_GITEA_VOL}/gitea"
-		echo "GITEA_DB_VOLUME=${_GITEA_VOL}/gitea_db"
-	} >>"$STUB_DIR/gitea.env"
+		echo "FORGEJO_DATA_VOLUME=${_FORGEJO_VOL}/forgejo"
+		echo "FORGEJO_DB_VOLUME=${_FORGEJO_VOL}/forgejo_db"
+	} >>"$STUB_DIR/forgejo.env"
 
-	mkdir -p "${_GITEA_VOL}"/{gitea,gitea_db}
+	mkdir -p "${_FORGEJO_VOL}"/{forgejo,forgejo_db}
 
-	mkdir -p "${_GITEA_VOL}/secrets"
-	echo "test-gitea-pg-pass" >"${_GITEA_VOL}/secrets/postgres_password"
+	mkdir -p "${_FORGEJO_VOL}/secrets"
+	echo "test-forgejo-pg-pass" >"${_FORGEJO_VOL}/secrets/postgres_password"
 
-	ensure_network "gitea_proxy_network"
+	ensure_network "forgejo_proxy_network"
 }
 
-teardown_gitea() {
-	docker compose -f "$REPO_ROOT/gitea/docker-compose.yaml" \
-		--project-directory "${_GITEA_VOL}" \
-		--env-file "$STUB_DIR/gitea.env" \
+teardown_forgejo() {
+	docker compose -f "$REPO_ROOT/forgejo/docker-compose.yaml" \
+		--project-directory "${_FORGEJO_VOL}" \
+		--env-file "$STUB_DIR/forgejo.env" \
 		down -v --remove-orphans 2>/dev/null || true
-	remove_network "gitea_proxy_network"
-	docker_rmdir "${_GITEA_VOL}"
+	remove_network "forgejo_proxy_network"
+	docker_rmdir "${_FORGEJO_VOL}"
 }
 
-@test "gitea: container starts and serves HTTP" {
-	setup_gitea
-	# gitea_app has no Docker healthcheck; wait for postgres then poll HTTP.
-	docker compose -f "$REPO_ROOT/gitea/docker-compose.yaml" \
-		--project-directory "${_GITEA_VOL}" \
-		--env-file "$STUB_DIR/gitea.env" up -d
-	wait_healthy "gitea_postgres" 120
+@test "forgejo: container starts and serves HTTP" {
+	setup_forgejo
+	# forgejo_app has a Docker healthcheck; wait for postgres then poll HTTP.
+	docker compose -f "$REPO_ROOT/forgejo/docker-compose.yaml" \
+		--project-directory "${_FORGEJO_VOL}" \
+		--env-file "$STUB_DIR/forgejo.env" up -d
+	wait_healthy "forgejo_postgres" 120
 
 	wait_http "http://127.0.0.1:3000/api/healthz" 120
 
 	run curl -sf http://127.0.0.1:3000/api/healthz
 	assert_success
 
-	teardown_gitea
+	teardown_forgejo
 }
 
 # -- Vaultwarden ---------------------------------------------------------------
@@ -222,7 +222,7 @@ _NPM_VOL=/tmp/tier2-reverse-proxy
 	mkdir -p "${_NPM_VOL}"/{npm,letsencrypt}
 
 	ensure_network "nextcloud_proxy_network"
-	ensure_network "gitea_proxy_network"
+	ensure_network "forgejo_proxy_network"
 	ensure_network "vaultwarden_proxy_network"
 	ensure_network "uptime_kuma_proxy_network"
 
@@ -237,7 +237,7 @@ _NPM_VOL=/tmp/tier2-reverse-proxy
 	docker compose -f "$REPO_ROOT/reverse-proxy/docker-compose.yaml" \
 		--env-file "$STUB_DIR/reverse-proxy.env" down -v --remove-orphans 2>/dev/null || true
 	remove_network "nextcloud_proxy_network"
-	remove_network "gitea_proxy_network"
+	remove_network "forgejo_proxy_network"
 	remove_network "vaultwarden_proxy_network"
 	remove_network "uptime_kuma_proxy_network"
 	docker_rmdir "${_NPM_VOL}"
@@ -254,7 +254,7 @@ _BACKUP_VOL=/tmp/tier2-backup
 	echo "test-borg-pass" >"${_BACKUP_VOL}/secrets/borg_passphrase"
 
 	ensure_network "nextcloud_network"
-	ensure_network "gitea_network"
+	ensure_network "forgejo_network"
 
 	# borgmatic has no healthcheck; just verify it starts.
 	run docker compose -f "$REPO_ROOT/backup/docker-compose.yaml" \
@@ -267,6 +267,6 @@ _BACKUP_VOL=/tmp/tier2-backup
 		--env-file "$STUB_DIR/backup.env" \
 		down -v --remove-orphans 2>/dev/null || true
 	remove_network "nextcloud_network"
-	remove_network "gitea_network"
+	remove_network "forgejo_network"
 	docker_rmdir "${_BACKUP_VOL}"
 }

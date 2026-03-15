@@ -40,7 +40,7 @@ _warn_destructive() {
 	echo "WARNING: Tier 2 and 3 tests are NOT safe to run on a production machine."
 	echo ""
 	echo "  - They start containers with the same names as production stacks"
-	echo "    (nextcloud_app, nextcloud_postgres, gitea_app, etc.)."
+	echo "    (nextcloud_app, nextcloud_postgres, forgejo_app, etc.)."
 	echo "  - They tear down stacks with 'docker compose down -v', which"
 	echo "    DELETES VOLUMES on any project that shares the same compose file."
 	echo "  - They bind the same ports as production (8888, 3000, etc.)."
