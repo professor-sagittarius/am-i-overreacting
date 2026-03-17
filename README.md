@@ -492,15 +492,36 @@ To restore only one service (e.g., Nextcloud but not Forgejo):
 
 ## Monitoring with Uptime Kuma
 
-Recommended HTTP(S) and TCP monitors in Uptime Kuma:
+Run the provisioning script to create all monitors automatically:
+
+```bash
+cd uptime-kuma
+pip install -r requirements.txt
+python provision_monitors.py
+```
+
+The script connects to Uptime Kuma, creates monitors for all services below, and prints push URLs to paste into your Ansible playbooks and `backup/.env`.
 
 | Service | Monitor Type | Endpoint |
 |---------|--------------|----------|
-| **Nextcloud** | HTTP(S) | `https://your-nextcloud-domain/status.php` |
-| **Forgejo** | HTTP(S) | `http://HOST_LAN_IP:3000/api/v1/version` |
-| **Vaultwarden** | HTTP(S) | `https://your-vaultwarden-domain/alive` |
-| **notify_push** | TCP | Port 7867 on `HOST_LAN_IP` |
-| **Borgmatic** | Push (optional) | Use `HEALTHCHECK_PING_URL` in `backup/.env` and uncomment the `on_error` hook in `backup/borgmatic.yaml` |
+| **Nextcloud** | HTTP(S) | `/status.php` |
+| **Forgejo** | HTTP(S) | `/api/v1/version` |
+| **Vaultwarden** | HTTP(S) | `/alive` |
+| **notify_push** | TCP | Port 7867 |
+| **Borgmatic** | Push | Paste `HEALTHCHECK_PING_URL` into `backup/.env` |
+| **Main server** | Ping + SSH TCP | Host LAN IP |
+| **Unattended upgrades** | Push | Installed via `uptime-kuma-hooks-playbook.yml` |
+| **Reboot required** | Push | Installed via `uptime-kuma-hooks-playbook.yml` |
+| **Disk space** | Push | Installed via `uptime-kuma-hooks-playbook.yml` |
+
+After pasting the push URLs from the script output into `ansible-webserver-hardening/uptime-kuma-hooks-playbook.yml`, run:
+
+```bash
+cd ../ansible-webserver-hardening
+ansible-playbook -i your-inventory uptime-kuma-hooks-playbook.yml
+```
+
+For half-price-books monitors, select that option when prompted by the script, then paste the HPB block into `uptime-kuma-hooks-hpb-playbook.yml` and run it against the HPB server.
 
 ## Disk Space & Performance
 
