@@ -3,7 +3,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from provision_monitors import monitor_definitions
+from unittest.mock import MagicMock
+from provision_monitors import monitor_definitions, get_existing, provision_monitor
 from uptime_kuma_api import MonitorType
 
 BASE_CONFIG = {
@@ -131,3 +132,98 @@ def test_all_monitors_have_required_fields():
         assert "type" in m, f"Monitor {m['name']} missing type"
         assert "interval" in m, f"Monitor {m['name']} missing interval"
         assert "group" in m, f"Monitor {m['name']} missing group"
+
+
+def _make_client(existing_monitors):
+    client = MagicMock()
+    client.get_monitors.return_value = existing_monitors
+    return client
+
+
+def test_get_existing_returns_dict_keyed_by_name():
+    client = _make_client([
+        {"id": 1, "name": "Nextcloud", "type": MonitorType.HTTP,
+         "url": "https://cloud.example.com/status.php", "interval": 60},
+    ])
+    result = get_existing(client)
+    assert "Nextcloud" in result
+    assert result["Nextcloud"]["id"] == 1
+
+
+def test_provision_creates_missing_monitor():
+    client = _make_client([])
+    desired = {"name": "Nextcloud", "type": MonitorType.HTTP,
+               "url": "https://cloud.example.com/status.php", "interval": 60, "group": "aio"}
+    status = provision_monitor(client, desired, {})
+    assert status == "created"
+    client.add_monitor.assert_called_once()
+
+
+def test_provision_skips_unchanged_monitor():
+    existing = {
+        "Nextcloud": {"id": 1, "name": "Nextcloud", "type": MonitorType.HTTP,
+                      "url": "https://cloud.example.com/status.php", "interval": 60}
+    }
+    client = _make_client([existing["Nextcloud"]])
+    desired = {"name": "Nextcloud", "type": MonitorType.HTTP,
+               "url": "https://cloud.example.com/status.php", "interval": 60, "group": "aio"}
+    status = provision_monitor(client, desired, existing)
+    assert status == "unchanged"
+    client.add_monitor.assert_not_called()
+    client.edit_monitor.assert_not_called()
+
+
+def test_provision_updates_changed_url():
+    existing = {
+        "Nextcloud": {"id": 1, "name": "Nextcloud", "type": MonitorType.HTTP,
+                      "url": "https://old.example.com/status.php", "interval": 60}
+    }
+    client = _make_client([existing["Nextcloud"]])
+    desired = {"name": "Nextcloud", "type": MonitorType.HTTP,
+               "url": "https://cloud.example.com/status.php", "interval": 60, "group": "aio"}
+    status = provision_monitor(client, desired, existing)
+    assert status == "updated"
+    client.edit_monitor.assert_called_once()
+
+
+def test_provision_updates_changed_interval():
+    existing = {
+        "Nextcloud": {"id": 1, "name": "Nextcloud", "type": MonitorType.HTTP,
+                      "url": "https://cloud.example.com/status.php", "interval": 30}
+    }
+    client = _make_client([existing["Nextcloud"]])
+    desired = {"name": "Nextcloud", "type": MonitorType.HTTP,
+               "url": "https://cloud.example.com/status.php", "interval": 60, "group": "aio"}
+    status = provision_monitor(client, desired, existing)
+    assert status == "updated"
+
+
+def test_provision_push_monitor_skips_when_interval_unchanged():
+    existing = {
+        "Borgmatic": {"id": 5, "name": "Borgmatic", "type": MonitorType.PUSH, "interval": 2880}
+    }
+    client = _make_client([existing["Borgmatic"]])
+    desired = {"name": "Borgmatic", "type": MonitorType.PUSH,
+               "interval": 2880, "group": "aio", "push_url_key": "borgmatic_push_url"}
+    status = provision_monitor(client, desired, existing)
+    assert status == "unchanged"
+
+
+def test_provision_does_not_pass_group_to_api():
+    """The 'group' field is internal bookkeeping; should not be sent to Uptime Kuma."""
+    client = _make_client([])
+    desired = {"name": "Nextcloud", "type": MonitorType.HTTP,
+               "url": "https://cloud.example.com/status.php", "interval": 60, "group": "aio"}
+    provision_monitor(client, desired, {})
+    call_kwargs = client.add_monitor.call_args[1]
+    assert "group" not in call_kwargs
+
+
+def test_provision_does_not_pass_push_url_key_to_api():
+    """push_url_key is internal; should not be sent to Uptime Kuma."""
+    client = _make_client([])
+    desired = {"name": "Borgmatic", "type": MonitorType.PUSH,
+               "interval": 2880, "group": "aio", "push_url_key": "borgmatic_push_url"}
+    provision_monitor(client, desired, {})
+    call_kwargs = client.add_monitor.call_args[1]
+    assert "push_url_key" not in call_kwargs

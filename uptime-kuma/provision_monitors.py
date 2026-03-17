@@ -166,3 +166,35 @@ def monitor_definitions(config: dict) -> list[dict]:
         ]
 
     return monitors
+
+
+_COMPARE_FIELDS = {
+    MonitorType.HTTP: ["type", "url", "interval"],
+    MonitorType.PORT: ["type", "hostname", "port", "interval"],
+    MonitorType.PING: ["type", "hostname", "interval"],
+    MonitorType.PUSH: ["type", "interval"],
+}
+
+_INTERNAL_FIELDS = {"group", "push_url_key"}
+
+
+def get_existing(client: UptimeKumaApi) -> dict[str, dict]:
+    """Return {name: monitor_dict} for all monitors currently in Uptime Kuma."""
+    return {m["name"]: m for m in client.get_monitors()}
+
+
+def provision_monitor(client: UptimeKumaApi, desired: dict, existing: dict[str, dict]) -> str:
+    """Create, update, or skip a monitor. Returns 'created', 'updated', or 'unchanged'."""
+    api_payload = {k: v for k, v in desired.items() if k not in _INTERNAL_FIELDS}
+    compare_fields = _COMPARE_FIELDS.get(desired["type"], ["type", "interval"])
+
+    if desired["name"] not in existing:
+        client.add_monitor(**api_payload)
+        return "created"
+
+    current = existing[desired["name"]]
+    if any(current.get(f) != desired.get(f) for f in compare_fields):
+        client.edit_monitor(current["id"], **api_payload)
+        return "updated"
+
+    return "unchanged"
