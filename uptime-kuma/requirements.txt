@@ -1,0 +1,2 @@
+uptime-kuma-api==1.2.1
+pytest>=7.0
