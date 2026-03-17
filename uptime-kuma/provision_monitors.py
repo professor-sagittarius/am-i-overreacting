@@ -178,6 +178,21 @@ _COMPARE_FIELDS = {
 _INTERNAL_FIELDS = {"group", "push_url_key"}
 
 
+def connect(url: str, username: str, password: str) -> UptimeKumaApi:
+    """Connect to Uptime Kuma. Prints error and exits on any failure."""
+    try:
+        client = UptimeKumaApi(url)
+    except Exception as e:
+        print(f"Error: could not connect to Uptime Kuma at {url}: {e}", flush=True)
+        raise SystemExit(1)
+    try:
+        client.login(username, password)
+    except Exception as e:
+        print(f"Error: login failed for user '{username}': {e}", flush=True)
+        raise SystemExit(1)
+    return client
+
+
 def get_existing(client: UptimeKumaApi) -> dict[str, dict]:
     """Return {name: monitor_dict} for all monitors currently in Uptime Kuma."""
     return {m["name"]: m for m in client.get_monitors()}

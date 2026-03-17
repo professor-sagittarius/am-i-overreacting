@@ -1,11 +1,12 @@
 # am-i-overreacting/uptime-kuma/tests/test_provision_monitors.py
 import sys
+import pytest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from unittest.mock import MagicMock
-from provision_monitors import monitor_definitions, get_existing, provision_monitor
-from uptime_kuma_api import MonitorType
+from provision_monitors import monitor_definitions, get_existing, provision_monitor, connect
+from uptime_kuma_api import UptimeKumaApi, MonitorType
 
 BASE_CONFIG = {
     "nextcloud_domain": "cloud.example.com",
@@ -227,3 +228,30 @@ def test_provision_does_not_pass_push_url_key_to_api():
     provision_monitor(client, desired, {})
     call_kwargs = client.add_monitor.call_args[1]
     assert "push_url_key" not in call_kwargs
+
+
+def test_connect_raises_on_bad_credentials(monkeypatch):
+    """connect() should print a clear error and exit on login failure."""
+    def fake_init(self, url):
+        pass
+    def fake_login(self, username, password):
+        raise Exception("Invalid credentials")
+
+    monkeypatch.setattr(UptimeKumaApi, "__init__", fake_init)
+    monkeypatch.setattr(UptimeKumaApi, "login", fake_login)
+
+    with pytest.raises(SystemExit) as exc:
+        connect("http://localhost:3001", "admin", "wrongpassword")
+    assert exc.value.code != 0
+
+
+def test_connect_raises_on_connection_refused(monkeypatch):
+    """connect() should print a clear error and exit if Uptime Kuma is unreachable."""
+    def fake_init(self, url):
+        raise ConnectionRefusedError("Connection refused")
+
+    monkeypatch.setattr(UptimeKumaApi, "__init__", fake_init)
+
+    with pytest.raises(SystemExit) as exc:
+        connect("http://localhost:3001", "admin", "password")
+    assert exc.value.code != 0
