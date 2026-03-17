@@ -244,3 +244,91 @@ def format_push_url_output(push_urls: dict[str, str]) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+import os
+import sys
+
+
+def _prompt(label: str, env_var: str = None, secret: bool = False) -> str:
+    """Prompt for a value, using env_var as default if set."""
+    if env_var and os.environ.get(env_var):
+        return os.environ[env_var]
+    import getpass
+    if secret:
+        return getpass.getpass(f"{label}: ")
+    return input(f"{label}: ").strip()
+
+
+def _yes(prompt: str, default: bool = False) -> bool:
+    hint = "[Y/n]" if default else "[y/N]"
+    answer = input(f"{prompt} {hint}: ").strip().lower()
+    if not answer:
+        return default
+    return answer in ("y", "yes")
+
+
+def main():
+    print("Uptime Kuma monitor provisioner")
+    print("=" * 40)
+
+    url = _prompt("Uptime Kuma URL (e.g. https://status.example.com)", "UPTIME_KUMA_URL")
+    username = _prompt("Username", "UPTIME_KUMA_USERNAME")
+    password = _prompt("Password", "UPTIME_KUMA_PASSWORD", secret=True)
+
+    print("\nConnecting to Uptime Kuma...")
+    client = connect(url, username, password)
+    print("Connected.")
+
+    print("\nConfigure monitors:")
+    config = {
+        "nextcloud_domain": _prompt("Nextcloud domain (e.g. cloud.example.com)"),
+        "forgejo_ip": _prompt("Host LAN IP (used for Forgejo, notify_push, host checks)"),
+        "vaultwarden_domain": _prompt("Vaultwarden domain (e.g. vault.example.com)"),
+        "main_server_ip": None,  # filled below
+        "include_hpb": _yes("Include half-price-books monitors?"),
+        "include_netbird": _yes("Include Netbird VPN monitor?"),
+    }
+    config["main_server_ip"] = config["forgejo_ip"]
+
+    if config["include_netbird"]:
+        config["netbird_ip"] = _prompt("Netbird VPN IP")
+
+    if config["include_hpb"]:
+        config["hpb_domain"] = _prompt("HPB signaling domain (e.g. signal.example.com)")
+        config["collabora_domain"] = _prompt("Collabora domain (e.g. office.example.com)")
+        config["hpb_ip"] = _prompt("HPB server LAN/public IP")
+
+    monitors = monitor_definitions(config)
+    existing = get_existing(client)
+
+    print(f"\nProvisioning {len(monitors)} monitors...")
+    push_urls = {}
+
+    for monitor in monitors:
+        status = provision_monitor(client, monitor, existing)
+        print(f"  [{status}] {monitor['name']}")
+
+        if monitor.get("push_url_key") and status == "created":
+            # Re-fetch to get the pushToken assigned by Uptime Kuma
+            updated = get_existing(client)
+            push_token = updated.get(monitor["name"], {}).get("pushToken", "")
+            if push_token:
+                push_urls[monitor["push_url_key"]] = f"{url.rstrip('/')}/api/push/{push_token}"
+        elif monitor.get("push_url_key") and status in ("unchanged", "updated"):
+            updated = get_existing(client)
+            push_token = updated.get(monitor["name"], {}).get("pushToken", "")
+            if push_token:
+                push_urls[monitor["push_url_key"]] = f"{url.rstrip('/')}/api/push/{push_token}"
+
+    if push_urls:
+        print("\n" + "=" * 40)
+        print("Push URLs - paste into the indicated files:")
+        print("=" * 40)
+        print(format_push_url_output(push_urls))
+
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()
