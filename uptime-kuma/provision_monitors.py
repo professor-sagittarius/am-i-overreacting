@@ -213,3 +213,34 @@ def provision_monitor(client: UptimeKumaApi, desired: dict, existing: dict[str, 
         return "updated"
 
     return "unchanged"
+
+
+def format_push_url_output(push_urls: dict[str, str]) -> str:
+    """Format collected push URLs as grouped YAML blocks for easy pasting."""
+    lines = []
+
+    main_keys = [k for k in push_urls if k.startswith("main_")]
+    hpb_keys = [k for k in push_urls if k.startswith("hpb_")]
+
+    if main_keys:
+        lines.append("# --- Main server: paste into uptime-kuma-hooks-playbook.yml under vars: ---")
+        for k in main_keys:
+            var = k.removeprefix("main_")
+            lines.append(f'uptime_kuma_{var}: "{push_urls[k]}"  # {k}')
+        lines.append('uptime_kuma_disk_threshold_percent: 80')
+        lines.append("")
+
+    if hpb_keys:
+        lines.append("# --- HPB server: paste into uptime-kuma-hooks-hpb-playbook.yml under vars: ---")
+        for k in hpb_keys:
+            var = k.removeprefix("hpb_")
+            lines.append(f'uptime_kuma_{var}: "{push_urls[k]}"  # {k}')
+        lines.append('uptime_kuma_disk_threshold_percent: 80')
+        lines.append("")
+
+    if "borgmatic_push_url" in push_urls:
+        lines.append("# --- am-i-overreacting: paste into backup/.env ---")
+        lines.append(f'HEALTHCHECK_PING_URL={push_urls["borgmatic_push_url"]}')
+        lines.append("")
+
+    return "\n".join(lines)

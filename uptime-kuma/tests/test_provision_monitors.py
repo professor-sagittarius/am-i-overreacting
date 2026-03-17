@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from unittest.mock import MagicMock
-from provision_monitors import monitor_definitions, get_existing, provision_monitor, connect
+from provision_monitors import monitor_definitions, get_existing, provision_monitor, connect, format_push_url_output
 from uptime_kuma_api import UptimeKumaApi, MonitorType
 
 BASE_CONFIG = {
@@ -255,3 +255,42 @@ def test_connect_raises_on_connection_refused(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         connect("http://localhost:3001", "admin", "password")
     assert exc.value.code != 0
+
+
+def test_format_includes_main_server_block():
+    push_urls = {
+        "main_unattended_upgrades_push_url": "https://uk.example.com/api/push/aaa",
+        "main_reboot_push_url": "https://uk.example.com/api/push/bbb",
+        "main_disk_push_url": "https://uk.example.com/api/push/ccc",
+    }
+    output = format_push_url_output(push_urls)
+    assert "uptime-kuma-hooks-playbook.yml" in output
+    assert "main_unattended_upgrades_push_url" in output
+    assert "https://uk.example.com/api/push/aaa" in output
+
+
+def test_format_includes_hpb_block_when_present():
+    push_urls = {
+        "hpb_unattended_upgrades_push_url": "https://uk.example.com/api/push/ddd",
+        "hpb_reboot_push_url": "https://uk.example.com/api/push/eee",
+        "hpb_disk_push_url": "https://uk.example.com/api/push/fff",
+    }
+    output = format_push_url_output(push_urls)
+    assert "uptime-kuma-hooks-hpb-playbook.yml" in output
+    assert "hpb_unattended_upgrades_push_url" in output
+
+
+def test_format_omits_hpb_block_when_no_hpb_urls():
+    push_urls = {
+        "main_unattended_upgrades_push_url": "https://uk.example.com/api/push/aaa",
+    }
+    output = format_push_url_output(push_urls)
+    assert "uptime-kuma-hooks-hpb-playbook.yml" not in output
+
+
+def test_format_includes_borgmatic_block():
+    push_urls = {"borgmatic_push_url": "https://uk.example.com/api/push/ggg"}
+    output = format_push_url_output(push_urls)
+    assert "backup/.env" in output
+    assert "HEALTHCHECK_PING_URL" in output
+    assert "https://uk.example.com/api/push/ggg" in output
