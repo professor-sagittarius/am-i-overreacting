@@ -22,7 +22,7 @@ verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 DRY_RUN=false
 VERBOSE=false
 CONTAINER=""
-EXPORT_DIR="nc-migration-export"
+EXPORT_DIR="nc-migration-export-$(date +%Y%m%d-%H%M%S)"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 usage() {
@@ -402,7 +402,7 @@ _write_manifest() {
 # host-side path using longest-prefix matching on the container's volume mounts.
 # Handles both direct data-dir mounts and parent-directory mounts.
 resolve_host_data_path() {
-	local container_path="$1"
+	local container_path="${1%/}" # strip trailing slash before matching
 
 	if [[ "$DOCKER_MODE" != true ]]; then
 		echo "$container_path"
@@ -415,15 +415,47 @@ resolve_host_data_path() {
 		return
 	}
 
+	# Prefer mounts with a non-empty Source (bind mounts, or named volumes that
+	# already have Source populated by the daemon).
 	local host_path
 	host_path=$(echo "$mounts_json" | jq -r --arg cpath "$container_path" '
-        map(select($cpath == .Destination or ($cpath | startswith(.Destination + "/"))))
+        map(select(
+            (.Source // "" | length) > 0 and
+            ($cpath == .Destination or ($cpath | startswith(.Destination + "/")))
+        ))
         | sort_by(.Destination | length) | reverse | first
         | if . then (.Source + ($cpath[(.Destination | length):]))
           else empty end
     ' 2>/dev/null) || true
 
-	echo "$host_path"
+	if [[ -n "$host_path" ]]; then
+		echo "$host_path"
+		return
+	fi
+
+	# Fallback for named volumes where Source is empty: ask Docker directly.
+	local vol_name vol_dest vol_mountpoint
+	vol_name=$(echo "$mounts_json" | jq -r --arg cpath "$container_path" '
+        map(select(
+            .Type == "volume" and
+            ($cpath == .Destination or ($cpath | startswith(.Destination + "/")))
+        ))
+        | sort_by(.Destination | length) | reverse | first
+        | .Name // empty
+    ' 2>/dev/null) || true
+
+	if [[ -n "$vol_name" ]]; then
+		vol_mountpoint=$(docker volume inspect "$vol_name" --format '{{.Mountpoint}}' 2>/dev/null) || true
+		vol_dest=$(echo "$mounts_json" | jq -r --arg name "$vol_name" '
+            map(select(.Name == $name)) | first | .Destination // empty
+        ' 2>/dev/null) || true
+		if [[ -n "$vol_mountpoint" && -n "$vol_dest" ]]; then
+			echo "${vol_mountpoint}${container_path#"$vol_dest"}"
+			return
+		fi
+	fi
+
+	echo ""
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
