@@ -138,7 +138,8 @@ cp forgejo/example.env forgejo/.env
 cp vaultwarden/example.env vaultwarden/.env
 cp uptime-kuma/example.env uptime-kuma/.env
 cp backup/example.env backup/.env
-chmod 600 reverse-proxy/.env nextcloud/.env forgejo/.env vaultwarden/.env uptime-kuma/.env backup/.env
+cp renovate/example.env renovate/.env
+chmod 600 reverse-proxy/.env nextcloud/.env forgejo/.env vaultwarden/.env uptime-kuma/.env backup/.env renovate/.env
 bash generate-passwords.sh
 ```
 
