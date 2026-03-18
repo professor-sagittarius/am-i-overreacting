@@ -226,3 +226,87 @@ _run_wrapper() {
 	run grep "FAILED" "$log"
 	assert_success
 }
+
+# --- clone-prod-to-dev.sh: dry-run and execution --------------------------
+
+@test "wrapper: --dry-run shows VM names and IDs without executing" {
+	_wrapper_env
+	_run_wrapper --dry-run
+	assert_success
+	assert_output --partial "101"
+	assert_output --partial "100"
+	assert_output --partial "dry-run"
+	refute_qm_called "destroy 101"
+	refute_qm_called "clone 100"
+}
+
+@test "wrapper: aborts without changes when confirmation is not 'yes'" {
+	_wrapper_env
+	run bash -c "echo 'no' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_failure
+	refute_qm_called "clone 100"
+}
+
+@test "wrapper: stops running dev VM before destroying" {
+	_wrapper_env
+	qm_respond status 101 "status: running"
+	run bash -c "echo 'yes' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_success
+	assert_qm_called "stop 101"
+	assert_qm_called "destroy 101"
+}
+
+@test "wrapper: skips stop when dev VM is already stopped" {
+	_wrapper_env
+	qm_respond status 101 "status: stopped"
+	run bash -c "echo 'yes' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_success
+	refute_qm_called "stop 101"
+	assert_qm_called "destroy 101"
+}
+
+@test "wrapper: skips stop and destroy when dev VM does not exist" {
+	_wrapper_env
+	qm_respond status 101 "" 2
+	run bash -c "echo 'yes' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_success
+	refute_qm_called "stop 101"
+	refute_qm_called "destroy 101"
+	assert_qm_called "clone 100"
+}
+
+@test "wrapper: assigns hookscript and starts VM after clone" {
+	_wrapper_env
+	run bash -c "echo 'yes' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_success
+	assert_qm_called "set 101"
+	assert_qm_called "start 101"
+}
+
+@test "wrapper: logs SUCCESS to LOG_FILE after clone" {
+	_wrapper_env
+	local log="$BATS_TEST_TMPDIR/clone.log"
+	run bash -c "echo 'yes' | PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
+	assert_success
+	assert [ -f "$log" ]
+	run grep "SUCCESS" "$log"
+	assert_success
+}

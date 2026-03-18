@@ -16,7 +16,6 @@ LOG_FILE="${LOG_FILE:-/var/log/clone-prod-to-dev.log}"
 # --------------------------------------------------
 
 DRY_RUN=false
-# shellcheck disable=SC2034  # used in execution flow (Task 5)
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
 die() {
@@ -40,7 +39,6 @@ qm config "$PROD_VMID" | grep -q "^protection: 1" ||
 dev_exists=false
 dev_name=""
 if qm status "$DEV_VMID" &>/dev/null; then
-	# shellcheck disable=SC2034  # used in execution flow (Task 5)
 	dev_exists=true
 	dev_name=$(qm config "$DEV_VMID" | awk '/^name:/{print $2}')
 	! qm config "$DEV_VMID" | grep -q "^protection: 1" ||
@@ -52,3 +50,46 @@ fi
 
 [[ -f "$DEV_TOKEN_FILE" && -s "$DEV_TOKEN_FILE" ]] ||
 	die "Dev token file not found or empty at $DEV_TOKEN_FILE"
+
+# Show what will happen
+echo ""
+if $dev_exists; then
+	echo "This will DESTROY: ${dev_name:-unknown} ($DEV_VMID)"
+else
+	echo "This will CREATE:  $DEV_VM_NAME ($DEV_VMID) (first time)"
+fi
+echo "Re-cloned from:    ${prod_name:-unknown} ($PROD_VMID)"
+echo ""
+
+if $DRY_RUN; then
+	echo "[dry-run] No changes made."
+	exit 0
+fi
+
+read -rp "Type 'yes' to continue: " confirmation
+[[ "$confirmation" == "yes" ]] || {
+	echo "Aborted."
+	exit 1
+}
+
+# Stop and destroy existing dev VM if present
+if $dev_exists; then
+	dev_status=$(qm status "$DEV_VMID" | awk '{print $2}')
+	[[ "$dev_status" != "running" ]] || qm stop "$DEV_VMID"
+	qm destroy "$DEV_VMID"
+fi
+
+# Clone, verify, assign hookscript, start
+qm clone "$PROD_VMID" "$DEV_VMID" --name "$DEV_VM_NAME" --full
+
+qm config "$DEV_VMID" &>/dev/null ||
+	die "Clone verification failed - VM $DEV_VMID has no config after clone"
+
+qm set "$DEV_VMID" --hookscript "$HOOKSCRIPT"
+qm start "$DEV_VMID"
+
+printf '%s [%s] SUCCESS: cloned %s (%s) -> %s (%s)\n' \
+	"$(date '+%Y-%m-%d %H:%M:%S')" "${USER:-unknown}" \
+	"$PROD_VMID" "${prod_name:-unknown}" \
+	"$DEV_VMID" "$DEV_VM_NAME" |
+	tee -a "$LOG_FILE"
