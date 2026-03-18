@@ -294,7 +294,7 @@ _run_wrapper() {
 		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
 		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh'"
 	assert_success
-	assert_qm_called "set 101"
+	assert_qm_called "set 101 --hookscript"
 	assert_qm_called "start 101"
 }
 
