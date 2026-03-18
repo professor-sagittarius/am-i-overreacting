@@ -183,6 +183,7 @@ get_config() {
 
 # ── Maintenance mode ──────────────────────────────────────────────────────────
 MAINTENANCE_ENABLED=false
+EXPORT_COMPLETED=false
 
 enable_maintenance() {
 	step "Enabling maintenance mode (OLD HOST)"
@@ -198,7 +199,7 @@ enable_maintenance() {
 }
 
 on_exit() {
-	if [[ "$MAINTENANCE_ENABLED" == true ]]; then
+	if [[ "$MAINTENANCE_ENABLED" == true && "$EXPORT_COMPLETED" != true ]]; then
 		echo ""
 		warn "Script exited early. Nextcloud is still in maintenance mode on the OLD HOST."
 		warn "Once migration is complete (or to abort), disable it with:"
@@ -559,6 +560,7 @@ main() {
 	echo "     bash nextcloud/migrate/import.sh"
 	echo ""
 	warn "Keep Nextcloud in maintenance mode until the new server is verified and DNS is switched."
+	EXPORT_COMPLETED=true
 }
 
 main
