@@ -419,10 +419,13 @@ resolve_host_data_path() {
 	# already have Source populated by the daemon).
 	local host_path
 	host_path=$(echo "$mounts_json" | jq -r --arg cpath "$container_path" '
-        map(select(
-            (.Source // "" | length) > 0 and
-            ($cpath == .Destination or ($cpath | startswith(.Destination + "/")))
-        ))
+        map(
+            .Destination as $dest | (.Source // "") as $src |
+            select(
+                ($src | length) > 0 and
+                ($cpath == $dest or ($cpath | startswith($dest + "/")))
+            )
+        )
         | sort_by(.Destination | length) | reverse | first
         | if . then (.Source + ($cpath[(.Destination | length):]))
           else empty end
@@ -436,10 +439,13 @@ resolve_host_data_path() {
 	# Fallback for named volumes where Source is empty: ask Docker directly.
 	local vol_name vol_dest vol_mountpoint
 	vol_name=$(echo "$mounts_json" | jq -r --arg cpath "$container_path" '
-        map(select(
-            .Type == "volume" and
-            ($cpath == .Destination or ($cpath | startswith(.Destination + "/")))
-        ))
+        map(
+            .Destination as $dest |
+            select(
+                .Type == "volume" and
+                ($cpath == $dest or ($cpath | startswith($dest + "/")))
+            )
+        )
         | sort_by(.Destination | length) | reverse | first
         | .Name // empty
     ' 2>/dev/null) || true
