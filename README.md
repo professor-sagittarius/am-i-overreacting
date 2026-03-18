@@ -667,6 +667,118 @@ The test suite does not currently cover:
 
 For these scenarios, test manually in a staging environment before production migration.
 
+## Dev VM (Staging Environment)
+
+Cloning the prod VM to create a dev/staging environment copies `CLOUDFLARE_TUNNEL_TOKEN`
+from `reverse-proxy/.env`. If the dev VM boots before that token is replaced, `cloudflared`
+connects to the prod tunnel and Cloudflare load-balances traffic between prod and dev
+unpredictably.
+
+The `proxmox/` directory contains two scripts that solve this:
+
+- **`dev-vm-hook.sh`** - Proxmox hookscript assigned to the dev VM. On `pre-start`, it
+  mounts the dev VM disk offline via `qemu-nbd`, replaces `CLOUDFLARE_TUNNEL_TOKEN` in
+  `reverse-proxy/.env` with the dev tunnel token, and verifies the replacement before
+  QEMU starts. The VM always boots with the correct token.
+- **`clone-prod-to-dev.sh`** - Wrapper to safely re-clone prod to dev. Runs pre-flight
+  safety checks, prompts for confirmation, stops and destroys the old dev VM, clones with
+  `--full`, re-assigns the hookscript, and starts the VM.
+
+### One-time Setup
+
+#### 1. Create a dedicated Cloudflare tunnel for dev
+
+In [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) under **Networks -> Connectors**,
+create a new Named Tunnel for dev. Configure it to route your dev subdomains (e.g.
+`dev.example.com`) to the dev VM's nginx-proxy-manager. Copy the tunnel token.
+
+#### 2. Store the dev token on the Proxmox host
+
+```bash
+mkdir -p /etc/proxmox/secrets
+echo "<dev-tunnel-token>" > /etc/proxmox/secrets/dev-cloudflare-token
+chmod 600 /etc/proxmox/secrets/dev-cloudflare-token
+chmod 700 /etc/proxmox/secrets
+```
+
+#### 3. Deploy the scripts
+
+SSH into the Proxmox host (root with key-based auth) and copy the scripts:
+
+```bash
+scp proxmox/dev-vm-hook.sh root@<proxmox-host>:/var/lib/vz/snippets/dev-vm-hook.sh
+scp proxmox/clone-prod-to-dev.sh root@<proxmox-host>:/usr/local/bin/clone-prod-to-dev.sh
+ssh root@<proxmox-host> chmod +x \
+    /var/lib/vz/snippets/dev-vm-hook.sh \
+    /usr/local/bin/clone-prod-to-dev.sh
+```
+
+#### 4. Set ENV_FILE_PATH in the deployed hookscript (required)
+
+The hookscript needs to know where `reverse-proxy/.env` lives inside the VM disk. SSH into
+the Proxmox host and check the partition layout:
+
+```bash
+modprobe nbd
+qemu-nbd --connect=/dev/nbd0 $(pvesm path <your-disk-ref>)
+lsblk /dev/nbd0
+blkid /dev/nbd0p*
+qemu-nbd --disconnect /dev/nbd0
+```
+
+Edit `/var/lib/vz/snippets/dev-vm-hook.sh` and set `ENV_FILE_PATH` and `DISK_PARTITION`
+in the config block to match your VM layout. The script refuses to run until `ENV_FILE_PATH`
+is set. Example:
+
+```bash
+ENV_FILE_PATH="/home/deploy/am-i-overreacting/reverse-proxy/.env"
+DISK_PARTITION=1
+```
+
+#### 5. Enable protection on the prod VM
+
+```bash
+qm set <prod-vmid> --protection 1
+qm config <prod-vmid> | grep protection
+# Expected: protection: 1
+```
+
+This prevents Proxmox from destroying or modifying the prod VM disk even if incorrect
+commands are run against it. `clone-prod-to-dev.sh` verifies this flag is set and refuses
+to proceed if it is missing.
+
+#### 6. First clone
+
+```bash
+clone-prod-to-dev.sh --dry-run   # preview what will happen
+clone-prod-to-dev.sh
+```
+
+#### 7. Verify the token was swapped
+
+After the dev VM boots, SSH in and confirm:
+
+```bash
+grep CLOUDFLARE_TUNNEL_TOKEN /path/to/reverse-proxy/.env
+# Must show the dev token, not the prod token
+```
+
+Also confirm in the Cloudflare Zero Trust dashboard that `cloudflared` connected to the
+dev tunnel, not prod.
+
+### Ongoing Cloning
+
+Re-clone dev from prod at any time to refresh it:
+
+```bash
+clone-prod-to-dev.sh --dry-run   # preview
+clone-prod-to-dev.sh
+```
+
+All clone operations are logged to `/var/log/clone-prod-to-dev.log`.
+
+---
+
 ## Notes
 
 - **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:
