@@ -32,7 +32,7 @@ _MOUNT_POINT_CREATED=0
 cleanup() {
 	umount "$MOUNT_POINT" 2>/dev/null || true
 	qemu-nbd --disconnect /dev/nbd0 2>/dev/null || true
-	[[ "$_MOUNT_POINT_CREATED" == "1" ]] && rm -rf "$MOUNT_POINT" 2>/dev/null || true
+	{ [[ "$_MOUNT_POINT_CREATED" == "1" ]] && rm -rf "$MOUNT_POINT"; } 2>/dev/null || true
 }
 
 [[ -f "$DEV_TOKEN_FILE" ]] || {
@@ -79,6 +79,7 @@ env_file="${MOUNT_POINT}/${ENV_FILE_PATH#/}"
 }
 
 # Replace token
+# Delimiter is | - safe because Cloudflare tokens are base64url-encoded (no pipe characters).
 sed -i "s|^CLOUDFLARE_TUNNEL_TOKEN=.*|CLOUDFLARE_TUNNEL_TOKEN=${dev_token}|" "$env_file"
 
 # Verify replacement succeeded
