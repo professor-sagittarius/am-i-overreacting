@@ -123,3 +123,93 @@ setup() {
 	assert_failure
 	assert_output --partial "verification failed"
 }
+
+# --- clone-prod-to-dev.sh: helpers ----------------------------------------
+
+# Sets up a valid environment: prod exists+protected, dev exists+unprotected,
+# hookscript file present, token file present.
+_wrapper_env() {
+	local hook="$BATS_TEST_TMPDIR/dev-vm-hook.sh"
+	local token="$BATS_TEST_TMPDIR/dev-token"
+	touch "$hook"
+	echo "dev-token-abc" >"$token"
+	qm_respond status 100 "status: running"
+	qm_respond config 100 $'name: prod-vm\nprotection: 1'
+	qm_respond status 101 "status: stopped"
+	qm_respond config 101 "name: dev-vm"
+	export _HOOK="$hook" _TOKEN="$token"
+}
+
+_run_wrapper() {
+	run bash -c "PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' $*"
+}
+
+# --- clone-prod-to-dev.sh: pre-flight checks ------------------------------
+
+@test "wrapper: exits non-zero when PROD_VMID equals DEV_VMID" {
+	_wrapper_env
+	run bash -c "PROD_VMID=100 DEV_VMID=100 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' --dry-run"
+	assert_failure
+	assert_output --partial "same"
+}
+
+@test "wrapper: exits non-zero when prod VM does not exist" {
+	_wrapper_env
+	qm_respond status 100 "" 2
+	_run_wrapper --dry-run
+	assert_failure
+	assert_output --partial "does not exist"
+}
+
+@test "wrapper: exits non-zero when prod VM is not protected" {
+	_wrapper_env
+	qm_respond config 100 "name: prod-vm"
+	_run_wrapper --dry-run
+	assert_failure
+	assert_output --partial "not protected"
+}
+
+@test "wrapper: exits non-zero when dev VM is protected" {
+	_wrapper_env
+	qm_respond config 101 $'name: dev-vm\nprotection: 1'
+	_run_wrapper --dry-run
+	assert_failure
+	assert_output --partial "variables may be swapped"
+}
+
+@test "wrapper: exits non-zero when hookscript file is missing" {
+	_wrapper_env
+	run bash -c "PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='/nonexistent/hook.sh' DEV_TOKEN_FILE='$_TOKEN' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' --dry-run"
+	assert_failure
+	assert_output --partial "Hookscript not found"
+}
+
+@test "wrapper: exits non-zero when dev token file is missing" {
+	_wrapper_env
+	run bash -c "PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='/nonexistent/token' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' --dry-run"
+	assert_failure
+	assert_output --partial "token file"
+}
+
+@test "wrapper: exits non-zero when dev token file is empty" {
+	_wrapper_env
+	touch "$BATS_TEST_TMPDIR/empty-token"
+	run bash -c "PROD_VMID=100 DEV_VMID=101 \
+		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$BATS_TEST_TMPDIR/empty-token' \
+		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' --dry-run"
+	assert_failure
+	assert_output --partial "token file"
+}
