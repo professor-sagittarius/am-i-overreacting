@@ -144,7 +144,7 @@ _run_wrapper() {
 	run bash -c "PROD_VMID=100 DEV_VMID=101 \
 		HOOKSCRIPT_FILE='$_HOOK' DEV_TOKEN_FILE='$_TOKEN' \
 		LOG_FILE='$BATS_TEST_TMPDIR/clone.log' \
-		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' "$*""
+		bash '$REPO_ROOT/proxmox/clone-prod-to-dev.sh' $*"
 }
 
 # --- clone-prod-to-dev.sh: pre-flight checks ------------------------------

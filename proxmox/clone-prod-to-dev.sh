@@ -75,7 +75,7 @@ read -rp "Type 'yes' to continue: " confirmation
 # Stop and destroy existing dev VM if present
 if $dev_exists; then
 	dev_status=$(qm status "$DEV_VMID" | awk '{print $2}')
-	[[ "$dev_status" != "running" ]] || qm stop "$DEV_VMID"
+	[[ "$dev_status" != "running" ]] || qm stop "$DEV_VMID" --timeout 60
 	qm destroy "$DEV_VMID"
 fi
 
