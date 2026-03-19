@@ -577,7 +577,10 @@ For half-price-books monitors, select that option when prompted by the script, t
 
 ### Rotating Redis Password
 
-1. Update `nextcloud/secrets/redis_password`
+1. Update `nextcloud/secrets/redis_password`, then re-apply the required permissions (PHP reads this file at runtime as `www-data`):
+   ```bash
+   chmod 644 nextcloud/secrets/redis_password
+   ```
 2. Restart containers:
    ```bash
    docker compose -f nextcloud/docker-compose.yaml up -d --force-recreate nextcloud_redis nextcloud_app

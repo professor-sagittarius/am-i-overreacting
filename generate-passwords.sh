@@ -36,12 +36,13 @@ for secret in "${SECRETS[@]}"; do
 	fi
 done
 
-# redis_password must be readable by www-data (GID 33) inside containers - both
+# redis_password must be readable by www-data inside containers - both
 # nextcloud_app (via PHP at runtime) and nextcloud_notify_push read it directly.
-# Applied unconditionally so existing files are also fixed on re-run.
-# chown may fail if GID 33 doesn't exist on the host (e.g., in CI) - that's OK.
-chown :33 nextcloud/secrets/redis_password 2>/dev/null || true
-chmod 640 nextcloud/secrets/redis_password
+# Use 644 rather than 640+chown because GID 33 (www-data) rarely exists on the
+# host, making chown :33 unreliable. The secrets/ directory is mode 700 so
+# world-readable files inside it are still only reachable by the directory owner
+# outside containers. Applied unconditionally so existing files are also fixed.
+chmod 644 nextcloud/secrets/redis_password
 
 for env_file in "${ENV_FILES[@]}"; do
 	if [ ! -f "${env_file}" ]; then
