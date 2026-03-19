@@ -152,8 +152,8 @@ The `generate-passwords.sh` script creates `nextcloud/secrets/`, `forgejo/secret
 - `DOCKER_VOLUME_DIR` - Base path for NPM data
 
 **nextcloud/.env**
-- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com nextcloud_app`). Re-applied on every startup via `before-startup.sh` — updating this in `.env` and restarting is sufficient to add or remove trusted domains.
-- `NEXTCLOUD_PRIMARY_DOMAIN` - Primary domain used for `overwrite.cli.url` (must also be in `NEXTCLOUD_TRUSTED_DOMAINS`). Re-applied on every startup via `before-startup.sh` — updating it in `.env` and restarting is sufficient to change the primary domain.
+- `NEXTCLOUD_TRUSTED_DOMAINS` - Space-separated list of domains (e.g., `cloud.example.com nextcloud_app`). Re-applied on every startup via `before-startup.sh`. Updating this in `.env` and restarting is sufficient to add or remove trusted domains.
+- `NEXTCLOUD_PRIMARY_DOMAIN` - Primary domain used for `overwrite.cli.url` (must also be in `NEXTCLOUD_TRUSTED_DOMAINS`). Re-applied on every startup via `before-startup.sh`. Updating it in `.env` and restarting is sufficient to change the primary domain.
 - `NEXTCLOUD_ADMIN_USER` - Admin username (password is in `nextcloud/secrets/admin_password`)
 - `NEXTCLOUD_PROXY_NETWORK_SUBNET` - Subnet for the nextcloud_proxy_network (default: 172.28.0.0/24)
 - `NEXTCLOUD_INTERNAL_NETWORK_SUBNET` - Subnet for nextcloud_network internal bridge (default: 172.29.0.0/24)
@@ -801,7 +801,7 @@ All clone operations are logged to `/var/log/clone-prod-to-dev.log`.
 ## Notes
 
 - **Switching Nextcloud domains** (e.g., between staging and production): `NEXTCLOUD_PRIMARY_DOMAIN` and `NEXTCLOUD_TRUSTED_DOMAINS` are both re-applied on every startup via `before-startup.sh`, so updating them in `nextcloud/.env` and restarting the stack handles `overwrite.cli.url` and trusted domains automatically. Also:
-  1. Re-run notify_push setup with the new domain (cannot be automated — requires the push service to already be running):
+  1. Re-run notify_push setup with the new domain (the push service must already be running; this step cannot be automated):
      ```bash
      docker exec -u www-data nextcloud_app php occ notify_push:setup https://newdomain.example.com/push
      ```
