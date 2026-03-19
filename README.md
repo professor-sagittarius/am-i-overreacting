@@ -258,7 +258,22 @@ docker exec -u www-data nextcloud_app php occ notify_push:setup https://cloud.yo
 
 **Verification checkpoint:** notify_push is running on TCP port 7867 (check with `docker ps`)
 
-#### 12. Configure full text search indexing
+#### 12. Import migration data *(skip if this is a fresh install)*
+
+If you are migrating an existing Nextcloud instance to this stack, this is the right time to do it. The stack is healthy and notify_push is configured. Running the migration before the full text search step ensures the index covers migrated content rather than an empty instance.
+
+See `nextcloud/migrate/README.md` for the full guide. The short version:
+
+```bash
+# OLD HOST - export database and config
+bash export.sh
+
+# NEW HOST - transfer files and import
+rsync ...  # commands printed by export.sh
+bash nextcloud/migrate/import.sh
+```
+
+#### 13. Configure full text search indexing
 
 If the `fulltextsearch` profile is enabled, trigger the initial index after all containers are healthy:
 
@@ -268,7 +283,7 @@ docker exec -u www-data nextcloud_app php occ fulltextsearch:index
 
 This may take some time depending on the number of files.
 
-#### 13. Verify HaRP/AppAPI *(skip if harp profile is not enabled)*
+#### 14. Verify HaRP/AppAPI *(skip if harp profile is not enabled)*
 
 The AppAPI deploy daemon is registered automatically by `before-startup.sh` on first startup using `HP_SHARED_KEY`. Verify it in **Administration Settings → AppAPI** - you should see a "Harp Proxy (Docker)" daemon registered.
 
