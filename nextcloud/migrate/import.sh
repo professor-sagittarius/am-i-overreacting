@@ -756,7 +756,7 @@ run_post_import_occ() {
 				verbose "  [job cleanup] keeping  id=$job_id class=$job_class"
 			fi
 		done < <(new_occ background-job:list --output=json 2>/dev/null \
-			| jq -r '.[] | [(.id | tostring), .class] | @tsv' \
+			| jq -r '.[] | (.id | tostring) + "\t" + .class' \
 			2>/dev/null || true)
 		if [[ "$stale_count" -gt 0 ]]; then
 			info "Removed $stale_count stale background job(s) for uninstalled apps"
