@@ -99,6 +99,12 @@ if [ -n "${COLLABORA_URL:-}" ] && ! echo "${COLLABORA_URL}" | grep -q "yourdomai
 	if [ -n "${COLLABORA_WOPI_ALLOWLIST:-}" ]; then
 		php occ config:app:set richdocuments wopi_allowlist --value="${COLLABORA_WOPI_ALLOWLIST}"
 	fi
+	# Set the URL Collabora uses to reach Nextcloud. Without this, a value carried
+	# over from a previous installation (e.g. http://nextcloud-aio-apache:23973 from
+	# Nextcloud AIO) persists in the database and breaks document editing.
+	if [ -n "${NEXTCLOUD_PRIMARY_DOMAIN:-}" ] && ! echo "${NEXTCLOUD_PRIMARY_DOMAIN}" | grep -q "yourdomain.com"; then
+		php occ config:app:set richdocuments public_wopi_url --value="https://${NEXTCLOUD_PRIMARY_DOMAIN}"
+	fi
 fi
 
 # ── Profile: imaginary ────────────────────────────────────────────────────────
