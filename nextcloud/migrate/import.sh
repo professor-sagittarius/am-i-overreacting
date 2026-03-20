@@ -665,6 +665,25 @@ run_post_import_occ() {
 		warn "App Store apps may need updating from Settings > Apps after migration."
 	fi
 
+	# Remove deploy daemons from the old instance. The restored database carries
+	# over any app_api daemon registrations (e.g. docker_aio from Nextcloud AIO),
+	# which appear alongside the new stack's daemon registered by before-startup.sh.
+	# Unregister all daemons here; before-startup.sh re-registers the correct one
+	# on every startup so nothing is lost.
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} Would unregister app_api deploy daemons from old instance"
+	else
+		local old_daemons
+		old_daemons=$(new_occ app_api:daemon:list --output=json 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
+		if [[ -n "$old_daemons" ]]; then
+			info "Removing app_api deploy daemons from old instance..."
+			while IFS= read -r daemon; do
+				verbose "Unregistering: $daemon"
+				new_occ app_api:daemon:unregister "$daemon" &>/dev/null || true
+			done <<<"$old_daemons"
+		fi
+	fi
+
 	info "Adding missing database indices..."
 	runcmd new_occ db:add-missing-indices
 
