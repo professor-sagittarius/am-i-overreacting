@@ -631,45 +631,16 @@ handle_admin_password() {
 run_post_import_occ() {
 	step "Running post-import maintenance commands (NEW HOST)"
 
-	# Disable App Store apps (those in custom_apps/) before running occ upgrade.
-	# occ upgrade attempts to download new versions of these apps from the App Store,
-	# which can fail during migration and leave the app directory in a broken state
-	# (e.g. missing vendor/autoload.php), preventing the container from starting at all.
-	# Disabling them first restricts occ upgrade to core DB schema migrations only.
-	local custom_app_list=()
-	if [[ "$DRY_RUN" == true ]]; then
-		echo -e "  ${YELLOW}[dry-run]${NC} Would identify and temporarily disable App Store apps before upgrade"
-	else
-		info "Identifying App Store apps to temporarily disable during upgrade..."
-		while IFS= read -r app; do
-			if docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
-				custom_app_list+=("$app")
-			fi
-		done < <(new_occ app:list --output=json 2>/dev/null | jq -r '.enabled | keys[]' 2>/dev/null || true)
-
-		if [[ "${#custom_app_list[@]}" -gt 0 ]]; then
-			info "Temporarily disabling ${#custom_app_list[@]} App Store app(s): ${custom_app_list[*]}"
-			for app in "${custom_app_list[@]}"; do
-				verbose "Disabling: $app"
-				new_occ app:disable "$app" &>/dev/null || true
-			done
-		fi
-	fi
-
 	info "Running database upgrade..."
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "  ${YELLOW}[dry-run]${NC} new_occ upgrade"
 	else
+		# Prevent occ upgrade from downloading new App Store app versions.
+		# With appstoreenabled=false the upgrade runs schema migrations only;
+		# app updates can be done from Settings > Apps after migration completes.
+		new_occ config:system:set appstoreenabled --type=boolean --value=false &>/dev/null || true
 		new_occ upgrade
-	fi
-
-	if [[ "$DRY_RUN" != true && "${#custom_app_list[@]}" -gt 0 ]]; then
-		info "Re-enabling App Store apps..."
-		for app in "${custom_app_list[@]}"; do
-			verbose "Re-enabling: $app"
-			new_occ app:enable "$app" &>/dev/null || warn "Could not re-enable '$app' - update it from Settings > Apps."
-		done
-		warn "App Store apps may need updating from Settings > Apps after migration."
+		new_occ config:system:delete appstoreenabled &>/dev/null || true
 	fi
 
 	# Remove deploy daemons from the old instance. The restored database carries
@@ -721,6 +692,32 @@ run_post_import_occ() {
 				new_occ config:app:delete "$app" enabled &>/dev/null || true
 			done
 			info "Removed ${#missing_apps[@]} app(s) not installed on this host (listed at end of output)"
+
+			# Remove background jobs registered by the removed apps. These remain
+			# in oc_jobs after config:app:delete and fire on the next cron run,
+			# producing QueryNotFoundException errors. Match jobs by comparing the
+			# PHP namespace segment against the app name (both lowercased, underscores
+			# stripped) to avoid false positives on core Nextcloud jobs.
+			local stale_count=0
+			local job_id job_class ns removed_app app_ns
+			while IFS=$'\t' read -r job_id job_class; do
+				[[ -z "$job_id" || -z "$job_class" ]] && continue
+				ns=$(echo "$job_class" | awk -F'\\' '{print tolower($2)}' | tr -d '_')
+				[[ -z "$ns" ]] && continue
+				for removed_app in "${REMOVED_APPS[@]}"; do
+					app_ns=$(echo "$removed_app" | tr '[:upper:]' '[:lower:]' | tr -d '_')
+					if [[ "$ns" == "$app_ns" ]]; then
+						new_occ background-job:delete "$job_id" &>/dev/null || true
+						stale_count=$((stale_count + 1))
+						break
+					fi
+				done
+			done < <(new_occ background-job:list --output=json 2>/dev/null \
+				| jq -r '.[] | [(.id | tostring), .class] | @tsv' \
+				2>/dev/null || true)
+			if [[ "$stale_count" -gt 0 ]]; then
+				info "Removed $stale_count stale background job(s) for uninstalled apps"
+			fi
 		else
 			info "All enabled apps have a corresponding installation directory"
 		fi
