@@ -12,6 +12,8 @@ profile_enabled() { echo ",${COMPOSE_PROFILES:-}," | grep -q ",$1,"; }
 
 # ── System config ─────────────────────────────────────────────────────────────
 
+php occ config:system:set loglevel --type=integer --value=2
+
 if [ -n "${DEFAULT_PHONE_REGION:-}" ]; then
 	php occ config:system:set default_phone_region --value="${DEFAULT_PHONE_REGION}"
 fi
