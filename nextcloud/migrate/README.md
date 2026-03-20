@@ -133,6 +133,24 @@ source path printed by `export.sh`. For the destination, check `NEXTCLOUD_DATA_V
 > paths is intentional - it tells rsync to copy the *contents* of the directory, not the
 > directory itself.
 
+> **Note on SSH hardening:** If the new host was hardened with `ansible-webserver-hardening`
+> (or similar), its SSH client config likely has `PasswordAuthentication no`, which will
+> cause rsync to fail with a permission denied error. Set up key-based auth to the old
+> host first:
+> ```bash
+> ssh-keygen -t ed25519 -f ~/.ssh/migration_key
+> ssh-copy-id -i ~/.ssh/migration_key.pub -o PasswordAuthentication=yes user@OLD_HOST
+> ssh-add ~/.ssh/migration_key
+> ```
+> The data volume rsync must run with `sudo` to write to the volume path, and `sudo` looks
+> for SSH keys in `/root/.ssh` rather than the user's home directory. Pass the key
+> explicitly for that command:
+> ```bash
+> sudo rsync -avz --progress -t -e "ssh -i ~/.ssh/migration_key" \
+>     user@OLD_HOST:<HOST_DATA_DIR>/ \
+>     <NEXTCLOUD_DATA_VOLUME>/
+> ```
+
 The data transfer can take a long time for large instances. You can safely pause and resume
 rsync - it will skip files that already transferred correctly.
 
