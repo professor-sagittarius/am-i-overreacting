@@ -184,7 +184,7 @@ docker network create uptime_kuma_proxy_network
 
 The Nextcloud proxy network uses a fixed subnet so `TRUSTED_PROXIES` can be scoped to only NPM. The subnet is `NEXTCLOUD_PROXY_NETWORK_SUBNET` in `nextcloud/.env`.
 
-The `tunnel_network` (used between cloudflared and NPM) is managed by the reverse-proxy stack and created automatically.
+The `tunnel_network` (used between cloudflared and NPM) is managed by the reverse-proxy stack and created automatically with a fixed subnet (`172.21.0.0/24`). The subnet is pinned because `COLLABORA_WOPI_ALLOWLIST` in `nextcloud/.env` references it. Collabora WOPI callbacks arrive via cloudflared on this network, so Nextcloud sees cloudflared's Docker IP rather than the Collabora server's public IP.
 
 #### 6. Start the reverse-proxy stack
 

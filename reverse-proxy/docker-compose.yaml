@@ -43,6 +43,13 @@ networks:
   tunnel:
     name: tunnel_network
     driver: bridge
+    ipam:
+      config:
+        # Fixed subnet so cloudflared's IP is predictable. Collabora WOPI callbacks
+        # arrive via Cloudflare → cloudflared → NPM → Nextcloud, so Nextcloud sees
+        # cloudflared's IP on this network as the request source. The default value
+        # of COLLABORA_WOPI_ALLOWLIST in nextcloud/example.env matches this subnet.
+        - subnet: 172.21.0.0/24
   nextcloud_proxy:
     name: nextcloud_proxy_network
     external: true
