@@ -19,10 +19,11 @@ step() { echo -e "\n${BOLD}━━━ $* ━━━${NC}"; }
 verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=false
 VERBOSE=false
 CONTAINER=""
-EXPORT_DIR="nc-migration-export-$(date +%Y%m%d-%H%M%S)"
+EXPORT_DIR="$SCRIPT_DIR/bundles/nc-migration-export-$(date +%Y%m%d-%H%M%S)"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 usage() {
@@ -480,12 +481,23 @@ db_user=""
 db_pass=""
 
 main() {
+	# Set up logging before any output so the full run is captured.
+	# The export dir is created unconditionally here (even in dry-run) so the
+	# log can be written. The runcmd mkdir later in the script is a no-op if
+	# the directory already exists.
+	mkdir -p "$EXPORT_DIR"
+	local log_file="$EXPORT_DIR/export.log"
+	exec > >(tee -a "$log_file") 2>&1
+	trap 'echo ""; echo "Run ended:   $(date)"' EXIT
+
 	echo ""
 	echo -e "${BOLD}Nextcloud Migration - Export Script${NC}"
 	echo -e "${BOLD}Run on the OLD HOST${NC}"
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "${YELLOW}DRY-RUN MODE: No changes will be made${NC}"
 	fi
+	echo "Run started: $(date)"
+	info "Logging to: $log_file"
 	echo ""
 
 	warn "Before proceeding, ensure you have a full backup or VM snapshot of this host."
@@ -541,8 +553,8 @@ main() {
 	echo ""
 	echo -e "${BOLD}Next steps - run these on the NEW HOST:${NC}"
 	echo ""
-	echo "  1. Transfer the export bundle:"
-	echo "     rsync -avz --progress ./$EXPORT_DIR/ NEW_HOST:~/nc-migration-export/"
+	echo "  1. Transfer the export bundle (run from the repo root on the NEW HOST):"
+	echo "     rsync -avz --progress user@OLD_HOST:~/am-i-overreacting/nextcloud/migrate/bundles/ ./nextcloud/migrate/bundles/"
 	echo ""
 	echo "  2. Transfer user files directly to the new data volume location."
 	echo "     Check NEXTCLOUD_DATA_VOLUME in nextcloud/.env on the new host for the destination path."

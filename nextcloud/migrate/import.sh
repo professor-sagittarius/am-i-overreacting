@@ -20,10 +20,11 @@ step() { echo -e "\n${BOLD}━━━ $* ━━━${NC}"; }
 verbose() { if [[ "$VERBOSE" == true ]]; then echo -e "  [verbose] $*"; fi; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=false
 VERBOSE=false
 NON_INTERACTIVE=false
-EXPORT_DIR="nc-migration-export"
+EXPORT_DIR=""
 ENV_FILE="nextcloud/.env"
 SECRETS_DIR="nextcloud/secrets"
 COMPOSE_FILE="nextcloud/docker-compose.yaml"
@@ -38,7 +39,7 @@ Run on the NEW HOST from the repository root directory.
 Options:
   --dry-run           Preview actions without executing
   -v, --verbose       Show detailed output
-  --export-dir DIR    Location of export bundle (default: nc-migration-export)
+  --export-dir DIR    Location of export bundle (default: most recent bundle in nextcloud/migrate/bundles/)
   --non-interactive   Skip interactive prompts (answers 'n' to all)
   --env-file FILE     Path to the stack .env file (default: nextcloud/.env)
   --secrets-dir DIR   Directory containing postgres_password and admin_password (default: nextcloud/secrets)
@@ -665,6 +666,36 @@ run_post_import_occ() {
 		warn "App Store apps may need updating from Settings > Apps after migration."
 	fi
 
+	# Disable apps that are marked as enabled in the database but have no
+	# corresponding directory on the new installation. These are apps from the
+	# old instance that are not part of this stack (e.g. aio-nextcloud, or apps
+	# removed from the App Store). Without this step they cause repeated
+	# AppPathNotFoundException errors in the logs on every request.
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} Would disable apps enabled in database but missing from filesystem"
+	else
+		info "Checking for apps enabled in database but missing from filesystem..."
+		local missing_apps=()
+		while IFS= read -r app; do
+			if ! docker exec nextcloud_app test -d "/var/www/html/apps/$app" 2>/dev/null &&
+				! docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
+				missing_apps+=("$app")
+			fi
+		done < <(new_occ app:list --output=json 2>/dev/null | jq -r '.enabled | keys[]' 2>/dev/null || true)
+		if [[ "${#missing_apps[@]}" -gt 0 ]]; then
+			warn "${#missing_apps[@]} app(s) were enabled in the old database but are not installed here."
+			warn "They have been removed to prevent log flooding. Reinstall from Settings > Apps if needed:"
+			for app in "${missing_apps[@]}"; do
+				warn "  - $app"
+				# app:remove clears the DB entries so the App Store shows the app as
+				# available rather than disabled. Fall back to app:disable if remove fails.
+				new_occ app:remove "$app" &>/dev/null || new_occ app:disable "$app" &>/dev/null || true
+			done
+		else
+			verbose "All enabled apps have a corresponding installation directory"
+		fi
+	fi
+
 	# Remove deploy daemons from the old instance. The restored database carries
 	# over any app_api daemon registrations (e.g. docker_aio from Nextcloud AIO),
 	# which appear alongside the new stack's daemon registered by before-startup.sh.
@@ -774,12 +805,35 @@ cleanup_prompt() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
+	# Resolve export bundle directory. If --export-dir was not given, pick the
+	# most recently modified bundle in nextcloud/migrate/bundles/.
+	if [[ -z "$EXPORT_DIR" ]]; then
+		EXPORT_DIR=$(ls -td "$SCRIPT_DIR/bundles/nc-migration-export-"* 2>/dev/null | head -1 || true)
+		if [[ -z "$EXPORT_DIR" ]]; then
+			EXPORT_DIR="$SCRIPT_DIR/bundles/nc-migration-export"
+		fi
+	fi
+
+	# Set up logging before any output so the full run is captured.
+	# Log goes in the export bundle dir so it stays with the migration artifacts.
+	# Falls back to the current directory if the bundle dir does not yet exist.
+	local log_file
+	if [[ -d "$EXPORT_DIR" ]]; then
+		log_file="$EXPORT_DIR/import-$(date +%Y%m%d-%H%M%S).log"
+	else
+		log_file="nc-migration-import-$(date +%Y%m%d-%H%M%S).log"
+	fi
+	exec > >(tee -a "$log_file") 2>&1
+	trap 'echo ""; echo "Run ended:   $(date)"' EXIT
+
 	echo ""
 	echo -e "${BOLD}Nextcloud Migration - Import Script${NC}"
 	echo -e "${BOLD}Run on the NEW HOST from the repository root${NC}"
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "${YELLOW}DRY-RUN MODE: No changes will be made${NC}"
 	fi
+	echo "Run started: $(date)"
+	info "Logging to: $log_file"
 	echo ""
 
 	check_prerequisites

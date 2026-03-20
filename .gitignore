@@ -1,3 +1,4 @@
 .env
 **/secrets/
-nc-migration-export-*/
+nextcloud/migrate/bundles/*
+!nextcloud/migrate/bundles/.gitkeep
