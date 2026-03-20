@@ -695,25 +695,31 @@ run_post_import_occ() {
 	# old instance that are not part of this stack (e.g. aio-nextcloud, or apps
 	# removed from the App Store). Without this step they cause repeated
 	# AppPathNotFoundException errors in the logs on every request.
+	# config:list is used instead of app:list because app:list silently skips
+	# apps whose directories are missing, which is the condition being detected.
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "  ${YELLOW}[dry-run]${NC} Would disable apps enabled in database but missing from filesystem"
 	else
 		info "Checking for apps enabled in database but missing from filesystem..."
 		local missing_apps=()
 		while IFS= read -r app; do
+			[[ -z "$app" ]] && continue
 			if ! docker exec nextcloud_app test -d "/var/www/html/apps/$app" 2>/dev/null &&
 				! docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
 				missing_apps+=("$app")
 			fi
-		done < <(new_occ app:list --output=json 2>/dev/null | jq -r '.enabled | keys[]' 2>/dev/null || true)
+		done < <(new_occ config:list --output=json 2>/dev/null \
+			| jq -r '.apps | to_entries[] | select(.value.enabled == "yes") | .key' \
+			2>/dev/null || true)
 		if [[ "${#missing_apps[@]}" -gt 0 ]]; then
 			warn "${#missing_apps[@]} app(s) were enabled in the old database but are not installed here."
 			warn "They have been removed to prevent log flooding. Reinstall from Settings > Apps if needed:"
 			for app in "${missing_apps[@]}"; do
 				warn "  - $app"
-				# app:remove clears the DB entries so the App Store shows the app as
-				# available rather than disabled. Fall back to app:disable if remove fails.
-				new_occ app:remove "$app" &>/dev/null || new_occ app:disable "$app" &>/dev/null || true
+				# config:app:delete removes the enabled entry so the App Store shows
+				# the app as available to install rather than disabled. This is a core
+				# command that works even when the app directory does not exist.
+				new_occ config:app:delete "$app" enabled 2>/dev/null || true
 			done
 		else
 			info "All enabled apps have a corresponding installation directory"
