@@ -624,7 +624,14 @@ run_post_import_occ() {
 	runcmd new_occ maintenance:mode --on
 
 	info "Running database upgrade..."
-	runcmd new_occ upgrade
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} new_occ upgrade"
+	else
+		# occ upgrade exits non-zero if any apps could not be updated from the App Store
+		# (e.g. richdocuments, spreed). The core database upgrade completes regardless,
+		# so treat a non-zero exit as a warning rather than a fatal error.
+		new_occ upgrade || warn "occ upgrade exited with errors - some apps may need updating from the App Store. Continuing."
+	fi
 
 	info "Adding missing database indices..."
 	runcmd new_occ db:add-missing-indices
