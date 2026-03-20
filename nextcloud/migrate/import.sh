@@ -646,6 +646,7 @@ run_post_import_occ() {
 			2>/dev/null || true)
 
 		new_occ upgrade
+		new_occ maintenance:mode --off
 
 		# Find apps that occ upgrade disabled that have no installation directory
 		# on this host (i.e. they were from the old instance but are not part of
