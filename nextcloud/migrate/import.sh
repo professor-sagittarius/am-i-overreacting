@@ -773,6 +773,11 @@ main() {
 	start_app_and_wait
 	apply_config_values
 	run_post_import_occ
+
+	step "Starting remaining services (NEW HOST)"
+	runcmd docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
+	success "All services started"
+
 	handle_admin_password
 	print_checklist
 	cleanup_prompt
