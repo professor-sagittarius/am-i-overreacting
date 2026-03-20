@@ -732,36 +732,6 @@ run_post_import_occ() {
 		else
 			info "All enabled apps have a corresponding installation directory"
 		fi
-
-		# Remove stale background jobs whose class files no longer exist.
-		# Covers apps disabled by occ upgrade and apps cleaned up above.
-		# OCA\ class names follow PSR-4: OCA\{Ns}\{Sub}\{Class} maps to
-		# {app_dir}/lib/{Sub}/{Class}.php - so checking for the file is precise.
-		# OC\ and OCP\ are core classes; only OCA\ (third-party) jobs are checked.
-		info "Cleaning up stale background jobs for uninstalled apps..."
-		local stale_count=0
-		local job_id job_class rel_path
-		while IFS=$'\t' read -r job_id job_class; do
-			[[ -z "$job_id" || -z "$job_class" ]] && continue
-			[[ "$job_class" != OCA\\* ]] && continue
-			# Strip OCA\ and the app namespace segment to get the lib-relative path:
-			# OCA\UserRetention\BackgroundJob\ExpireUsers -> BackgroundJob/ExpireUsers
-			rel_path=$(echo "$job_class" | cut -d'\' -f3- | tr '\\' '/')
-			[[ -z "$rel_path" ]] && continue
-			if ! docker exec nextcloud_app find /var/www/html/apps /var/www/html/custom_apps \
-				-path "*/lib/${rel_path}.php" 2>/dev/null | grep -q .; then
-				verbose "  [job cleanup] REMOVING id=$job_id class=$job_class (file not found: */lib/${rel_path}.php)"
-				new_occ background-job:delete "$job_id" &>/dev/null || true
-				stale_count=$((stale_count + 1))
-			else
-				verbose "  [job cleanup] keeping  id=$job_id class=$job_class"
-			fi
-		done < <(new_occ background-job:list --output=json 2>/dev/null \
-			| jq -r '.[] | (.id | tostring) + "\t" + .class' \
-			2>/dev/null || true)
-		if [[ "$stale_count" -gt 0 ]]; then
-			info "Removed $stale_count stale background job(s) for uninstalled apps"
-		fi
 	fi
 
 	# before-startup.sh also runs these on every startup, so if they fail here
