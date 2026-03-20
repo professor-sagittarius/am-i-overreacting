@@ -112,7 +112,7 @@ automatically, so you can use the printed source path directly.
 
 ```bash
 # NEW HOST - transfer the export bundle (small - contains database and config)
-rsync -avz --progress user@OLD_HOST:~/nc-migration-export/ ./nc-migration-export/
+rsync -avz --progress user@OLD_HOST:~/am-i-overreacting/nextcloud/migrate/bundles/ ./nextcloud/migrate/bundles/
 
 # NEW HOST - transfer user files directly to the final data volume location
 # Source: use the host path printed by export.sh (not the container-internal path)

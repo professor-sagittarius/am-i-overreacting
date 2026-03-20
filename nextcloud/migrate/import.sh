@@ -490,23 +490,31 @@ PGEOF
 }
 
 # ── Data ownership fix ────────────────────────────────────────────────────────
-# Runs before the app container starts - uses host chown directly (UID 33 = www-data).
 fix_data_ownership() {
 	step "Fixing data directory ownership (NEW HOST)"
-
-	if [[ ! -d "$NEW_DATA_VOLUME" ]]; then
-		warn "Data volume directory does not exist: $NEW_DATA_VOLUME"
-		warn "If you rsynced files to a different path, fix ownership manually:"
-		warn "  sudo chown -R 33:33 /path/to/nextcloud/data"
-		return
-	fi
 
 	info "Setting ownership to www-data (UID 33:GID 33) on: $NEW_DATA_VOLUME"
 	runcmd docker run --rm \
 		-v "${NEW_DATA_VOLUME}:/data" \
 		alpine \
 		chown -R 33:33 /data
-	success "Data directory ownership fixed"
+
+	# Verify the directory has content. Docker auto-creates missing host paths as
+	# empty directories, so an empty result means the data rsync was likely skipped.
+	if [[ "$DRY_RUN" != true ]]; then
+		local file_count
+		file_count=$(docker run --rm -v "${NEW_DATA_VOLUME}:/data:ro" alpine sh -c 'ls /data 2>/dev/null | wc -l')
+		if [[ "$file_count" -eq 0 ]]; then
+			error "Data directory is empty: $NEW_DATA_VOLUME"
+			error "Rsync user files to the new host first, then re-run this script:"
+			error "  rsync -avz --progress -t user@OLD_HOST:<HOST_DATA_DIR>/ $NEW_DATA_VOLUME/"
+			exit 1
+		else
+			success "Data directory ownership fixed ($file_count item(s) at root level)"
+		fi
+	else
+		success "Data directory ownership fixed"
+	fi
 }
 
 # ── Start app and wait for health ─────────────────────────────────────────────
