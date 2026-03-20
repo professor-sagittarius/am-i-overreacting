@@ -1,0 +1,5 @@
+#!/bin/bash
+# Restores executable permissions on Nextcloud hook scripts after pull.
+# With certain umask settings (e.g., 0007), git checkout writes 100755 files
+# as 770 instead of 755, preventing the container from reading the scripts.
+chmod 755 nextcloud/hooks/before-starting/*.sh 2>/dev/null || true

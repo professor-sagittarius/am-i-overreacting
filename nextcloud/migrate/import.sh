@@ -723,6 +723,13 @@ run_post_import_occ() {
 		fi
 	fi
 
+	info "Disabling maintenance mode..."
+	runcmd new_occ maintenance:mode --off
+
+	# These commands use app-provided migrations and cannot run while Nextcloud
+	# is in maintenance mode. Run them after maintenance mode is disabled.
+	# before-startup.sh also runs them on every startup, so they are safe to
+	# skip here if they fail - they will complete on the next container restart.
 	info "Adding missing database indices..."
 	runcmd new_occ db:add-missing-indices
 
@@ -734,9 +741,6 @@ run_post_import_occ() {
 
 	info "Updating data-fingerprint (sync clients will re-sync cleanly)..."
 	runcmd new_occ maintenance:data-fingerprint
-
-	info "Disabling maintenance mode..."
-	runcmd new_occ maintenance:mode --off
 
 	success "Post-import maintenance complete"
 }

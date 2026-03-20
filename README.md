@@ -222,7 +222,11 @@ sudo mkdir -p ${NEXTCLOUD_REDIS_VOLUME}
 sudo mkdir -p ${ELASTICSEARCH_DATA_VOLUME}
 sudo chown 1000:1000 ${ELASTICSEARCH_DATA_VOLUME}
 sudo chgrp -R 33 nextcloud/hooks/
+chmod 755 nextcloud/hooks/before-starting/*.sh
+git config core.hooksPath githooks
 ```
+
+The `chmod` corrects permissions if your server's umask stripped the execute bit on checkout (e.g. a `0007` umask produces `770` instead of `755`). `git config core.hooksPath githooks` installs a post-merge hook that re-applies `chmod 755` automatically after each `git pull`.
 
 #### 9. Set up cron
 
