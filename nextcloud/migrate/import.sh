@@ -370,8 +370,9 @@ import_database() {
 		IFS=':' read -r nc_dbuser nc_dbpass <<<"$nc_dbcreds"
 		verbose "Nextcloud configured to use database user: $nc_dbuser"
 
-		info "Stopping nextcloud_app (keeping nextcloud_postgres running)..."
-		runcmd docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop nextcloud_app
+		info "Stopping all services except nextcloud_postgres..."
+		runcmd docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop \
+			$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps --services 2>/dev/null | grep -v '^nextcloud_postgres$' | tr '\n' ' ')
 
 		info "Dropping and recreating database '$NEW_PG_DB'..."
 		if [[ "$DRY_RUN" == true ]]; then
