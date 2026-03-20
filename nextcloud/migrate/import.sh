@@ -591,10 +591,24 @@ handle_admin_password() {
 		if [[ "$DRY_RUN" == true ]]; then
 			echo -e "  ${YELLOW}[dry-run]${NC} Would reset admin password via occ user:resetpassword"
 		else
+			# Temporarily disable password_policy so the generated password is accepted
+			# regardless of the old instance's password rules.
+			local policy_was_enabled=false
+			if new_occ app:list --output=json 2>/dev/null | jq -e '.enabled | has("password_policy")' &>/dev/null; then
+				policy_was_enabled=true
+				verbose "Disabling password_policy app for password reset..."
+				new_occ app:disable password_policy &>/dev/null || true
+			fi
+
 			docker exec \
 				-e OC_PASS="$new_pass" \
 				-u www-data nextcloud_app \
 				php occ user:resetpassword --password-from-env admin
+
+			if [[ "$policy_was_enabled" == true ]]; then
+				verbose "Re-enabling password_policy app..."
+				new_occ app:enable password_policy &>/dev/null || true
+			fi
 		fi
 		success "Admin password reset to the value in nextcloud/secrets/admin_password"
 	else
@@ -608,6 +622,9 @@ run_post_import_occ() {
 
 	info "Enabling maintenance mode..."
 	runcmd new_occ maintenance:mode --on
+
+	info "Running database upgrade..."
+	runcmd new_occ upgrade
 
 	info "Adding missing database indices..."
 	runcmd new_occ db:add-missing-indices
@@ -665,6 +682,11 @@ print_checklist() {
 cleanup_prompt() {
 	step "Cleanup (NEW HOST)"
 
+	if [[ "$DRY_RUN" == true ]]; then
+		info "[dry-run] Skipping export bundle removal prompt."
+		return
+	fi
+
 	echo ""
 	warn "Please verify the migration before cleaning up:"
 	warn "  - Log in to Nextcloud with the admin account"
@@ -711,8 +733,8 @@ main() {
 	fix_data_ownership
 	start_app_and_wait
 	apply_config_values
-	handle_admin_password
 	run_post_import_occ
+	handle_admin_password
 	print_checklist
 	cleanup_prompt
 

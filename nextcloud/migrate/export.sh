@@ -546,7 +546,10 @@ main() {
 	echo ""
 	echo "  2. Transfer user files directly to the new data volume location."
 	echo "     Check NEXTCLOUD_DATA_VOLUME in nextcloud/.env on the new host for the destination path."
-	echo "     Rsync directly to the final destination to avoid storing two copies:"
+	echo "     Before rsyncing, enable maintenance mode on the new Nextcloud instance to prevent"
+	echo "     file conflicts during the transfer:"
+	echo "       docker exec -u www-data nextcloud_app php occ maintenance:mode --on"
+	echo "     Then rsync directly to the final destination to avoid storing two copies:"
 	echo ""
 	if [[ -n "$host_data_dir" ]]; then
 		echo "     rsync -avz --progress -t ${host_data_dir}/ NEW_HOST:<NEXTCLOUD_DATA_VOLUME>/"
