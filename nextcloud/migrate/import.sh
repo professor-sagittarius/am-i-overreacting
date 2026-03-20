@@ -635,12 +635,39 @@ run_post_import_occ() {
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "  ${YELLOW}[dry-run]${NC} new_occ upgrade"
 	else
-		# Prevent occ upgrade from downloading new App Store app versions.
-		# With appstoreenabled=false the upgrade runs schema migrations only;
-		# app updates can be done from Settings > Apps after migration completes.
-		new_occ config:system:set appstoreenabled --type=boolean --value=false &>/dev/null || true
+		# Snapshot enabled apps before the upgrade. occ upgrade may disable some
+		# as incompatible; capturing them here includes them in the summary even
+		# though occ already handled the database cleanup for those.
+		local pre_upgrade_enabled=()
+		while IFS= read -r app; do
+			[[ -n "$app" ]] && pre_upgrade_enabled+=("$app")
+		done < <(new_occ config:list --output=json 2>/dev/null \
+			| jq -r '.apps | to_entries[] | select(.value.enabled == "yes") | .key' \
+			2>/dev/null || true)
+
 		new_occ upgrade
-		new_occ config:system:delete appstoreenabled &>/dev/null || true
+
+		# Find apps that occ upgrade disabled that have no installation directory
+		# on this host (i.e. they were from the old instance but are not part of
+		# this stack). Apps disabled because their installed version is outdated
+		# are excluded; those still have a directory and can be updated from
+		# Settings > Apps.
+		if [[ "${#pre_upgrade_enabled[@]}" -gt 0 ]]; then
+			local post_upgrade_enabled
+			post_upgrade_enabled=$(new_occ config:list --output=json 2>/dev/null \
+				| jq -r '.apps | to_entries[] | select(.value.enabled == "yes") | .key' \
+				2>/dev/null || true)
+			for app in "${pre_upgrade_enabled[@]}"; do
+				if ! echo "$post_upgrade_enabled" | grep -qx "$app" &&
+					! docker exec nextcloud_app test -d "/var/www/html/apps/$app" 2>/dev/null &&
+					! docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
+					REMOVED_APPS+=("$app")
+				fi
+			done
+			if [[ "${#REMOVED_APPS[@]}" -gt 0 ]]; then
+				info "occ upgrade disabled ${#REMOVED_APPS[@]} app(s) not installed on this host (listed at end of output)"
+			fi
+		fi
 	fi
 
 	# Remove deploy daemons from the old instance. The restored database carries
@@ -678,6 +705,15 @@ run_post_import_occ() {
 			[[ -z "$app" ]] && continue
 			if ! docker exec nextcloud_app test -d "/var/www/html/apps/$app" 2>/dev/null &&
 				! docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
+				missing_apps+=("$app")
+			elif docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null &&
+				! docker exec nextcloud_app test -f "/var/www/html/custom_apps/$app/appinfo/info.xml" 2>/dev/null; then
+				# Directory exists but appinfo/info.xml is missing: the App Store
+				# update downloaded an incomplete archive and left the directory in
+				# a broken state. Nextcloud cannot load the app and will refuse to
+				# start. Disable it so the instance remains functional; reinstall
+				# from Settings > Apps to restore it.
+				warn "App '$app' has a broken installation in custom_apps/ (incomplete update); disabling."
 				missing_apps+=("$app")
 			fi
 		done < <(new_occ config:list --output=json 2>/dev/null \
