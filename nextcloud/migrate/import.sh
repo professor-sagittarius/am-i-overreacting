@@ -623,14 +623,45 @@ run_post_import_occ() {
 	info "Enabling maintenance mode..."
 	runcmd new_occ maintenance:mode --on
 
+	# Disable App Store apps (those in custom_apps/) before running occ upgrade.
+	# occ upgrade attempts to download new versions of these apps from the App Store,
+	# which can fail during migration and leave the app directory in a broken state
+	# (e.g. missing vendor/autoload.php), preventing the container from starting at all.
+	# Disabling them first restricts occ upgrade to core DB schema migrations only.
+	local custom_app_list=()
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} Would identify and temporarily disable App Store apps before upgrade"
+	else
+		info "Identifying App Store apps to temporarily disable during upgrade..."
+		while IFS= read -r app; do
+			if docker exec nextcloud_app test -d "/var/www/html/custom_apps/$app" 2>/dev/null; then
+				custom_app_list+=("$app")
+			fi
+		done < <(new_occ app:list --output=json 2>/dev/null | jq -r '.enabled | keys[]' 2>/dev/null || true)
+
+		if [[ "${#custom_app_list[@]}" -gt 0 ]]; then
+			info "Temporarily disabling ${#custom_app_list[@]} App Store app(s): ${custom_app_list[*]}"
+			for app in "${custom_app_list[@]}"; do
+				verbose "Disabling: $app"
+				new_occ app:disable "$app" &>/dev/null || true
+			done
+		fi
+	fi
+
 	info "Running database upgrade..."
 	if [[ "$DRY_RUN" == true ]]; then
 		echo -e "  ${YELLOW}[dry-run]${NC} new_occ upgrade"
 	else
-		# occ upgrade exits non-zero if any apps could not be updated from the App Store
-		# (e.g. richdocuments, spreed). The core database upgrade completes regardless,
-		# so treat a non-zero exit as a warning rather than a fatal error.
-		new_occ upgrade || warn "occ upgrade exited with errors - some apps may need updating from the App Store. Continuing."
+		new_occ upgrade
+	fi
+
+	if [[ "$DRY_RUN" != true && "${#custom_app_list[@]}" -gt 0 ]]; then
+		info "Re-enabling App Store apps..."
+		for app in "${custom_app_list[@]}"; do
+			verbose "Re-enabling: $app"
+			new_occ app:enable "$app" &>/dev/null || warn "Could not re-enable '$app' - update it from Settings > Apps."
+		done
+		warn "App Store apps may need updating from Settings > Apps after migration."
 	fi
 
 	info "Adding missing database indices..."
