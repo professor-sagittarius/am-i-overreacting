@@ -270,6 +270,26 @@ docker exec -e PGPASSWORD="$(cat nextcloud/secrets/postgres_password)" \
 
 Then re-run the import script.
 
+### QueryNotFoundException errors in logs after migration
+
+If you see cron warnings like:
+
+```
+QueryNotFoundException: Could not resolve OCA\UserRetention\BackgroundJob\ExpireUsers
+```
+
+A background job from the old instance references an app that is not installed here. The
+import script removes most of these automatically, but jobs for apps that `occ upgrade`
+disabled as incompatible are not visible to `occ background-job:list` and must be removed
+manually.
+
+Find the job ID in Settings > Logging (look for a line near the error that includes
+`(id: N, arguments: null)`), then delete it:
+
+```bash
+docker exec -u www-data nextcloud_app php occ background-job:delete <id>
+```
+
 ### MySQL migration with pgloader fails
 
 The import script prints the pgloader config to stdout when it exits. Copy it, save it
