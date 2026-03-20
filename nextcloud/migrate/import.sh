@@ -630,9 +630,6 @@ handle_admin_password() {
 run_post_import_occ() {
 	step "Running post-import maintenance commands (NEW HOST)"
 
-	info "Enabling maintenance mode..."
-	runcmd new_occ maintenance:mode --on
-
 	# Disable App Store apps (those in custom_apps/) before running occ upgrade.
 	# occ upgrade attempts to download new versions of these apps from the App Store,
 	# which can fail during migration and leave the app directory in a broken state
@@ -674,6 +671,25 @@ run_post_import_occ() {
 		warn "App Store apps may need updating from Settings > Apps after migration."
 	fi
 
+	# Remove deploy daemons from the old instance. The restored database carries
+	# over any app_api daemon registrations (e.g. docker_aio from Nextcloud AIO),
+	# which appear alongside the new stack's daemon registered by before-startup.sh.
+	# Unregister all daemons here; before-startup.sh re-registers the correct one
+	# on every startup so nothing is lost.
+	if [[ "$DRY_RUN" == true ]]; then
+		echo -e "  ${YELLOW}[dry-run]${NC} Would unregister app_api deploy daemons from old instance"
+	else
+		local old_daemons
+		old_daemons=$(new_occ app_api:daemon:list --output=json 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
+		if [[ -n "$old_daemons" ]]; then
+			info "Removing app_api deploy daemons from old instance..."
+			while IFS= read -r daemon; do
+				verbose "Unregistering: $daemon"
+				new_occ app_api:daemon:unregister "$daemon" &>/dev/null || true
+			done <<<"$old_daemons"
+		fi
+	fi
+
 	# Disable apps that are marked as enabled in the database but have no
 	# corresponding directory on the new installation. These are apps from the
 	# old instance that are not part of this stack (e.g. aio-nextcloud, or apps
@@ -700,36 +716,12 @@ run_post_import_occ() {
 				new_occ app:remove "$app" &>/dev/null || new_occ app:disable "$app" &>/dev/null || true
 			done
 		else
-			verbose "All enabled apps have a corresponding installation directory"
+			info "All enabled apps have a corresponding installation directory"
 		fi
 	fi
 
-	# Remove deploy daemons from the old instance. The restored database carries
-	# over any app_api daemon registrations (e.g. docker_aio from Nextcloud AIO),
-	# which appear alongside the new stack's daemon registered by before-startup.sh.
-	# Unregister all daemons here; before-startup.sh re-registers the correct one
-	# on every startup so nothing is lost.
-	if [[ "$DRY_RUN" == true ]]; then
-		echo -e "  ${YELLOW}[dry-run]${NC} Would unregister app_api deploy daemons from old instance"
-	else
-		local old_daemons
-		old_daemons=$(new_occ app_api:daemon:list --output=json 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
-		if [[ -n "$old_daemons" ]]; then
-			info "Removing app_api deploy daemons from old instance..."
-			while IFS= read -r daemon; do
-				verbose "Unregistering: $daemon"
-				new_occ app_api:daemon:unregister "$daemon" &>/dev/null || true
-			done <<<"$old_daemons"
-		fi
-	fi
-
-	info "Disabling maintenance mode..."
-	runcmd new_occ maintenance:mode --off
-
-	# These commands use app-provided migrations and cannot run while Nextcloud
-	# is in maintenance mode. Run them after maintenance mode is disabled.
-	# before-startup.sh also runs them on every startup, so they are safe to
-	# skip here if they fail - they will complete on the next container restart.
+	# before-startup.sh also runs these on every startup, so if they fail here
+	# they will complete on the next container restart.
 	info "Adding missing database indices..."
 	runcmd new_occ db:add-missing-indices
 
