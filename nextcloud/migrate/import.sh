@@ -25,6 +25,7 @@ DRY_RUN=false
 VERBOSE=false
 NON_INTERACTIVE=false
 EXPORT_DIR=""
+REMOVED_APPS=()
 ENV_FILE="nextcloud/.env"
 SECRETS_DIR="nextcloud/secrets"
 COMPOSE_FILE="nextcloud/docker-compose.yaml"
@@ -712,15 +713,14 @@ run_post_import_occ() {
 			| jq -r '.apps | to_entries[] | select(.value.enabled == "yes") | .key' \
 			2>/dev/null || true)
 		if [[ "${#missing_apps[@]}" -gt 0 ]]; then
-			warn "${#missing_apps[@]} app(s) were enabled in the old database but are not installed here."
-			warn "They have been removed to prevent log flooding. Reinstall from Settings > Apps if needed:"
 			for app in "${missing_apps[@]}"; do
-				warn "  - $app"
+				REMOVED_APPS+=("$app")
 				# config:app:delete removes the enabled entry so the App Store shows
 				# the app as available to install rather than disabled. This is a core
 				# command that works even when the app directory does not exist.
-				new_occ config:app:delete "$app" enabled 2>/dev/null || true
+				new_occ config:app:delete "$app" enabled &>/dev/null || true
 			done
+			info "Removed ${#missing_apps[@]} app(s) not installed on this host (listed at end of output)"
 		else
 			info "All enabled apps have a corresponding installation directory"
 		fi
@@ -865,7 +865,18 @@ main() {
 	print_checklist
 	cleanup_prompt
 
-	echo ""
+	if [[ "${#REMOVED_APPS[@]}" -gt 0 ]]; then
+		echo ""
+		echo -e "${YELLOW}━━━ Apps not installed on this host (${#REMOVED_APPS[@]}) ━━━${NC}"
+		echo -e "${YELLOW}These apps were enabled on the old instance but are not installed here.${NC}"
+		echo -e "${YELLOW}They have been removed from the database to prevent log flooding.${NC}"
+		echo -e "${YELLOW}Reinstall from Settings > Apps if needed:${NC}"
+		for app in "${REMOVED_APPS[@]}"; do
+			echo -e "${YELLOW}  - $app${NC}"
+		done
+		echo ""
+	fi
+
 	success "Migration complete."
 }
 
